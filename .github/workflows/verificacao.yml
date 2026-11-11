@@ -1,0 +1,85 @@
+# minha versao: verificacao automatica antes de qualquer coisa chegar na VM.
+# Roda em todo Pull Request para o main e em todo commit que entra no main.
+# A VM (deploy/atualizar.sh) so instala um commit do main se ESTA verificacao passou nele.
+name: Verificacao
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: verificacao-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    name: Tipos, testes, build e dependencias
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: raiz_so_do_ci
+          MARIADB_DATABASE: zaphub_teste
+          MARIADB_USER: teste
+          MARIADB_PASSWORD: teste123
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=24
+    env:
+      # banco DESCARTAVEL do CI (some quando a verificacao termina). Nada aqui e segredo da producao.
+      DATABASE_URL: mysql://teste:teste123@127.0.0.1:3306/zaphub_teste
+      TEST_DATABASE_URL: mysql://teste:teste123@127.0.0.1:3306/zaphub_teste
+      AUTH_SECRET: segredo-falso-so-para-a-verificacao-do-ci
+      ENABLE_TELEMETRY: "false"
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # mesmo comando da VM (deploy/atualizar.sh), para testar o que vai para a producao
+      - name: Instalar dependencias
+        run: npm install --no-audit --no-fund --legacy-peer-deps
+
+      - name: Preparar o banco de teste
+        run: |
+          npx prisma generate
+          npx prisma db push --skip-generate
+
+      - name: Checagem de tipos
+        run: npx tsc --noEmit -p .
+
+      - name: Testes
+        run: |
+          npm test
+          npm run test:banco
+
+      - name: Build
+        run: npm run build
+
+      - name: Dependencias com falha alta ou critica (npm audit)
+        run: npm audit --audit-level=high
+
+  segredos:
+    name: Senhas e chaves vazadas (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

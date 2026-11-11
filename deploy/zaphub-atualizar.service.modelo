@@ -1,0 +1,17 @@
+# minha versao: atualizacao automatica. Roda o atualizar.sh --auto (silencioso quando nao ha novidade).
+# Instalado por:  sudo bash deploy/ativar-atualizacao-automatica.sh   (troca __DIR__ e __USER__)
+# Log:  journalctl -u zaphub-atualizar -n 50 --no-pager
+[Unit]
+Description=ZapHub - checar e aplicar atualizacoes do GitHub
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=__USER__
+WorkingDirectory=__DIR__
+Environment=HOME=/home/__USER__
+ExecStart=/usr/bin/env bash __DIR__/deploy/atualizar.sh --auto
+# o build do Next pode levar varios minutos em VM pequena
+TimeoutStartSec=45min
+Nice=10

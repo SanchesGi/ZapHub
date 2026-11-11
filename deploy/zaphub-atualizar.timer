@@ -1,0 +1,15 @@
+# minha versao: de quanto em quanto tempo checar o GitHub por versao nova.
+# Ligar:    sudo bash deploy/ativar-atualizacao-automatica.sh
+# Desligar: sudo bash deploy/ativar-atualizacao-automatica.sh desligar
+[Unit]
+Description=Checagem periodica de atualizacoes do ZapHub
+
+[Timer]
+# 3 min depois de ligar o servidor e depois a cada 5 min.
+# Se uma atualizacao ainda estiver rodando (build), a proxima espera ela terminar (trava no atualizar.sh).
+OnBootSec=3min
+OnUnitActiveSec=5min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

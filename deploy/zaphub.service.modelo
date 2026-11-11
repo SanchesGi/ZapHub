@@ -1,0 +1,27 @@
+# minha versao: servico do ZapHub no Linux (systemd). O instalar.sh troca __DIR__ e __USER__
+# pelos valores reais e instala em /etc/systemd/system/zaphub.service.
+# Reinicia sozinho se cair e sobe quando o servidor liga.
+[Unit]
+Description=ZapHub - gateway de WhatsApp
+After=network-online.target mariadb.service mysql.service
+Wants=network-online.target
+# nunca desiste por "reiniciou demais"
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=__USER__
+WorkingDirectory=__DIR__
+Environment=NODE_ENV=production
+# o proprio app le o .env (via @next/env), entao nao uso EnvironmentFile aqui
+# minha versao: chama o NODE (em /usr/bin) e manda ele rodar o projeto via tsx.
+# Antes executava node_modules/.bin/tsx (dentro de /home) -> o SELinux bloqueia executar de /home (203/EXEC).
+ExecStart=__NODE__ __DIR__/node_modules/tsx/dist/cli.mjs src/server/index.ts
+Restart=always
+RestartSec=5
+TimeoutStopSec=20
+# deixa escrever em ./data, ./certificados, ./logs-prod.txt etc.
+ProtectSystem=false
+
+[Install]
+WantedBy=multi-user.target

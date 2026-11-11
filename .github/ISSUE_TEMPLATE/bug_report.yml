@@ -1,0 +1,61 @@
+name: 🐛 Relatar um problema
+description: Algo não funciona como deveria no ZapHub
+title: "[Problema]: "
+labels: ["bug", "triagem"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por relatar! Quanto mais detalhes, mais rápido conseguimos corrigir.
+        **Falha de segurança?** Não abra issue pública: veja SECURITY.md.
+        **Não cole** senhas, tokens, números de clientes ou conteúdo de mensagens.
+
+  - type: input
+    id: versao
+    attributes:
+      label: Versão (commit)
+      description: Em Manutenção > Sistema aparece a versão instalada (ex.: 0bf6d14).
+    validations:
+      required: true
+
+  - type: dropdown
+    id: ambiente
+    attributes:
+      label: Onde está rodando
+      options:
+        - Servidor Linux com systemd (deploy/instalar.sh)
+        - Desenvolvimento (npm run dev)
+        - Outro
+    validations:
+      required: true
+
+  - type: textarea
+    id: descricao
+    attributes:
+      label: O que aconteceu
+      placeholder: "Ao enviar um áudio pelo painel, ele chega mudo..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: passos
+    attributes:
+      label: Passos para reproduzir
+      placeholder: |
+        1. Abrir o chat
+        2. Gravar um áudio
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: esperado
+    attributes:
+      label: O que deveria acontecer
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs (sem dados pessoais)
+      description: Manutenção > Logs. Apague números, nomes e conteúdo de mensagens antes de colar.
+      render: text

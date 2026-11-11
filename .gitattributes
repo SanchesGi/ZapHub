@@ -1,0 +1,4 @@
+# minha versao: scripts de Linux SEMPRE com quebra de linha LF (senao o bash quebra no servidor)
+*.sh text eol=lf
+deploy/* text eol=lf
+*.bat text eol=crlf

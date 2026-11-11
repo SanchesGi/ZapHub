@@ -1,0 +1,374 @@
+@import "tailwindcss";
+@plugin "tailwindcss-animate";
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  /* minha versao: faltava mapear; error.tsx e global-error.tsx usam text-destructive-foreground */
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+}
+
+:root {
+  --radius: 0.75rem;
+  /* minha versao: claro com neutros limpos (sem matiz azulado); marca ambar escuro #A8650A */
+  --background: oklch(0.978 0.002 90);
+  --foreground: oklch(0.17 0.004 90);
+  
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.17 0.004 90);
+  
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.17 0.004 90);
+  
+  /* Primaria - ambar escuro da marca (#A8650A); texto branco 4.6:1 */
+  --primary: oklch(0.569 0.125 65.1);
+  --primary-foreground: oklch(1 0 0);
+  
+  /* Secundaria - neutro claro */
+  --secondary: oklch(0.96 0.003 90);
+  --secondary-foreground: oklch(0.28 0.005 90);
+  
+  --muted: oklch(0.955 0.003 90);
+  --muted-foreground: oklch(0.46 0.006 90);
+  
+  --accent: oklch(0.95 0.012 85);
+  --accent-foreground: oklch(0.2 0.005 90);
+  
+  --destructive: oklch(0.57 0.245 27.3);
+  --destructive-foreground: oklch(0.98 0 0);
+  
+  --border: oklch(0.9 0.003 90);
+  --input: oklch(0.9 0.003 90);
+  --ring: oklch(0.569 0.125 65.1);
+  
+  --chart-1: oklch(0.6 0.15 65);
+  --chart-2: oklch(0.38 0.01 90);
+  --chart-3: oklch(0.64 0.13 88);
+  --chart-4: oklch(0.55 0.15 35);
+  --chart-5: oklch(0.45 0.08 55);
+
+  --sidebar: oklch(0.97 0.003 90);
+  --sidebar-foreground: oklch(0.2 0.004 90);
+  --sidebar-primary: oklch(0.569 0.125 65.1);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.94 0.012 85);
+  --sidebar-accent-foreground: oklch(0.2 0.005 90);
+  --sidebar-border: oklch(0.9 0.003 90);
+  --sidebar-ring: oklch(0.569 0.125 65.1);
+
+  /* minha versao: cores das bolhas da conversa (cada tema define as suas) */
+  --bolha-out: oklch(0.9 0.05 80);
+  --bolha-out-fg: oklch(0.2 0.01 70);
+  --bolha-in: oklch(1 0 0);
+  --chat-fundo: oklch(0.945 0.004 90);
+}
+
+.dark {
+  /* minha versao: escuro GRAFITE neutro (base #0D0E10 da marca), sem matiz azulado */
+  --background: oklch(0.164 0.004 90);
+  --foreground: oklch(0.94 0.004 90);
+
+  /* superficies sobem de tom conforme a elevacao: fundo < card < popover */
+  --card: oklch(0.2 0.004 90);
+  --card-foreground: oklch(0.94 0.004 90);
+
+  --popover: oklch(0.235 0.005 90);
+  --popover-foreground: oklch(0.94 0.004 90);
+
+  /* ambar da marca (#F4A935) com texto grafite */
+  --primary: oklch(0.789 0.151 73.1);
+  --primary-foreground: oklch(0.164 0.005 264);
+
+  --secondary: oklch(0.26 0.005 90);
+  --secondary-foreground: oklch(0.94 0.004 90);
+
+  --muted: oklch(0.25 0.005 90);
+  --muted-foreground: oklch(0.72 0.006 90);
+
+  --accent: oklch(0.3 0.015 80);
+  --accent-foreground: oklch(0.96 0.004 90);
+
+  --destructive: oklch(0.57 0.2 25);
+
+  --border: oklch(0.3 0.004 90);
+  --input: oklch(0.32 0.004 90);
+  --ring: oklch(0.789 0.151 73.1);
+
+  --chart-1: oklch(0.79 0.15 73);
+  --chart-2: oklch(0.9 0.02 90);
+  --chart-3: oklch(0.65 0.15 45);
+  --chart-4: oklch(0.55 0.08 60);
+  --chart-5: oklch(0.7 0.02 90);
+
+  --sidebar: oklch(0.19 0.004 90);
+  --sidebar-foreground: oklch(0.93 0.004 90);
+  --sidebar-primary: oklch(0.789 0.151 73.1);
+  --sidebar-primary-foreground: oklch(0.164 0.005 264);
+  --sidebar-accent: oklch(0.27 0.012 80);
+  --sidebar-accent-foreground: oklch(0.96 0.004 90);
+  --sidebar-border: oklch(0.28 0.004 90);
+  --sidebar-ring: oklch(0.789 0.151 73.1);
+
+  /* conversa: bolha enviada ambar queimado com texto claro, recebida grafite */
+  --bolha-out: oklch(0.4 0.06 70);
+  --bolha-out-fg: oklch(0.97 0.01 80);
+  --bolha-in: oklch(0.26 0.005 90);
+  --chat-fundo: oklch(0.14 0.004 90);
+}
+
+/* minha versao: bolhas. Redefinir --primary-foreground dentro da bolha enviada faz os detalhes
+   (hora, nome do atendente, citacao) acompanharem a cor do texto da bolha em qualquer tema. */
+.bolha-out {
+  background-color: var(--bolha-out);
+  color: var(--bolha-out-fg);
+  --primary-foreground: var(--bolha-out-fg);
+}
+.bolha-in {
+  background-color: var(--bolha-in);
+}
+.chat-fundo {
+  background-color: var(--chat-fundo);
+  background-image: radial-gradient(circle at 1px 1px, color-mix(in oklch, var(--muted-foreground) 9%, transparent) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground tracking-tight scroll-smooth;
+  }
+}
+
+/* Custom Utilities for Glassmorphism & Micro-animations */
+@layer utilities {
+  .glass {
+    @apply bg-white/70 dark:bg-card/70 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-xl;
+  }
+  
+  .glass-panel {
+    @apply bg-card/50 backdrop-blur-md border border-border/50;
+  }
+  
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-chart-3;
+  }
+  
+  .hover-lift {
+    @apply transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-lg hover:shadow-primary/20;
+  }
+  
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .animate-pulse-glow {
+    animation: pulse-glow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes float {
+    0% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-20px);
+    }
+    100% {
+      transform: translateY(0px);
+    }
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% {
+      opacity: 0.8;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.05);
+    }
+  }
+}
+
+/* minha versao: tela de login. Fundo (src/components/auth/animacao-login.tsx) e entrada do simbolo
+   (src/components/auth/simbolo-zaphub-animado.tsx). So transform, opacity e stroke-dashoffset.
+   Base de tempo comum: ciclo de 12 s dos pulsos = ciclo de `hub-reage` (nucleo). Cada pulso chega ao hub em
+   atraso + 1,92 s (16% de 12 s); `hub-reage` tem um "toque" em cada chegada: 3,72 5,22 6,12 7,82 8,52 10,32 11,02 11,52 s.
+   Se mudar atrasos ou duracao em animacao-login.tsx, ajuste as porcentagens de `hub-reage`. */
+.circuito-linha { stroke: var(--primary); stroke-opacity: .17; stroke-width: 1.25; }
+.circuito-pulso {
+  stroke: var(--primary);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-dasharray: .12 1.2;
+  stroke-dashoffset: .12;
+  opacity: 0;
+  animation: circuito-pulso 12s linear var(--d, 2s) infinite;
+}
+@keyframes circuito-pulso {
+  0%, 2% { stroke-dashoffset: .12; opacity: 0; }
+  4%     { opacity: .85; }
+  16%    { stroke-dashoffset: -.88; opacity: .85; }
+  18%, 100% { stroke-dashoffset: -1; opacity: 0; }
+}
+
+/* simbolo: tracos 1 e 2 se desenham, nucleo "pop", e aos 1,6 s entra o simbolo oficial */
+.simbolo-final { opacity: 0; animation: simbolo-final-entrar .01s linear 1.6s forwards; }
+@keyframes simbolo-final-entrar { to { opacity: 1; } }
+.simbolo-traco {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+  animation: simbolo-desenhar .6s ease-out both, simbolo-traco-sair .01s linear 1.6s forwards;
+}
+.simbolo-traco-1 { animation-delay: .1s, 1.6s; }
+.simbolo-traco-2 { animation-delay: .6s, 1.6s; }
+@keyframes simbolo-desenhar { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes simbolo-traco-sair { to { opacity: 0; } }
+.simbolo-nucleo, .hub-reage { transform-box: fill-box; transform-origin: center; }
+.simbolo-nucleo { animation: simbolo-nucleo-pop .4s ease-out 1.2s both; }
+@keyframes simbolo-nucleo-pop {
+  0%   { transform: scale(0); opacity: 0; }
+  70%  { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.hub-reage { animation: hub-reage 12s linear infinite; }
+@keyframes hub-reage {
+  0%, 31% { transform: scale(1); }   32.2% { transform: scale(1.06); }
+  34%, 43.5% { transform: scale(1); } 44.7% { transform: scale(1.06); }
+  46.5%, 51% { transform: scale(1); } 52.2% { transform: scale(1.06); }
+  54%, 65.2% { transform: scale(1); } 66.4% { transform: scale(1.06); }
+  68.2%, 71% { transform: scale(1); } 72.2% { transform: scale(1.06); }
+  74%, 86% { transform: scale(1); }   87.2% { transform: scale(1.06); }
+  89%, 91.8% { transform: scale(1); } 93% { transform: scale(1.06); }
+  94.8%, 96% { transform: scale(1); } 97.2% { transform: scale(1.06); }
+  99%, 100% { transform: scale(1); }
+}
+/* entrada do cartao: sobe e "acende" */
+.login-cartao { animation: login-entrar .7s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes login-entrar {
+  from { opacity: 0; transform: translateY(18px) scale(.98); filter: blur(4px); }
+  to   { opacity: 1; transform: none; filter: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .login-cartao { animation: none !important; }
+  .circuito-pulso, .simbolo-animado { display: none; }
+  .simbolo-final { opacity: 1; animation: none; }
+}
+
+/* minha versao: moldura fina com uma linha ambar que percorre o contorno em volta da marca.
+   So desenha a borda (mascara). O logo em si nao muda. Ciclo de 7 s; parada com reduced-motion.
+   Sem suporte a @property o angulo nao anima: sobra a borda ambar fixa (a do proprio elemento). */
+@property --angulo-marca {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+.moldura-marca {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  /* espaco livre de ~2x o traco do simbolo em volta do logo (em relacao ao tamanho da fonte) */
+  padding: 0.4em 0.55em;
+  border: 1px solid color-mix(in oklch, var(--primary) 40%, transparent);
+  border-radius: 0.65em;
+}
+.moldura-marca-compacta {
+  padding: 3px;
+  border-radius: 0.8rem;
+}
+.moldura-marca::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  padding: 1px;
+  border-radius: inherit;
+  pointer-events: none;
+  background: conic-gradient(from var(--angulo-marca), transparent 0 55%, var(--primary) 95%, transparent 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  animation: moldura-girar 7s linear infinite;
+}
+@keyframes moldura-girar { to { --angulo-marca: 360deg; } }
+
+/* minha versao: animacoes curtas (so transform/opacity), todas desligadas com reduced-motion */
+.msg-entrar { animation: msg-entrar 220ms ease-out; }
+@keyframes msg-entrar {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+/* minha versao: o vermelho de fundo nao chega a 4,5:1 como texto no escuro, e branco sobre ele exige o tom atual */
+.dark .text-destructive { color: oklch(0.72 0.17 25); }
+
+.pagina-entrar { animation: pagina-entrar 220ms ease-out; }
+@keyframes pagina-entrar {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.selo-pop { animation: selo-pop 200ms cubic-bezier(.34,1.56,.64,1); }
+@keyframes selo-pop {
+  from { opacity: 0; transform: scale(.6); }
+  to   { opacity: 1; transform: none; }
+}
+/* skeleton: brilho ambar neutro que passa por cima (so transform) */
+.skeleton-brilho { position: relative; overflow: hidden; }
+.skeleton-brilho::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, color-mix(in oklch, var(--primary) 12%, transparent), transparent);
+  animation: skeleton-brilho 1.6s ease-in-out infinite;
+}
+@keyframes skeleton-brilho { to { transform: translateX(100%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .moldura-marca::before, .msg-entrar, .pagina-entrar, .selo-pop, .skeleton-brilho::after { animation: none !important; }
+  .animate-in, .animate-out { animation: none !important; }
+}
