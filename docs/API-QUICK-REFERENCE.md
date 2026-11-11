@@ -21,6 +21,12 @@ Add header to all requests:
 X-API-Key: wag_your-api-key-here
 ```
 
+The `curl` examples below read the key from a variable, so it does not stay written in the command or in the shell history:
+
+```bash
+read -rsp "API key: " ZAPHUB_API_KEY; echo; export ZAPHUB_API_KEY
+```
+
 > [!TIP]
 > Generate the API key in the dashboard: **Webhooks e API** → API key. Format: `wag_` + 32 random characters.
 
@@ -32,7 +38,7 @@ X-API-Key: wag_your-api-key-here
 
 ```bash
 curl -X POST https://SEU_SERVIDOR:3443/api/sessions \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "My Session"
@@ -43,14 +49,14 @@ curl -X POST https://SEU_SERVIDOR:3443/api/sessions \
 
 ```bash
 curl https://SEU_SERVIDOR:3443/api/sessions \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ### 3. Send a Text Message
 
 ```bash
 curl -X POST https://SEU_SERVIDOR:3443/api/messages/session-name/6281234567890%40s.whatsapp.net/send \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "message": {
@@ -63,7 +69,7 @@ curl -X POST https://SEU_SERVIDOR:3443/api/messages/session-name/6281234567890%4
 
 ```bash
 curl -X POST https://SEU_SERVIDOR:3443/api/messages/session-name/6281234567890%40s.whatsapp.net/send \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "message": {
@@ -79,7 +85,7 @@ curl -X POST https://SEU_SERVIDOR:3443/api/messages/session-name/6281234567890%4
 
 ```bash
 curl -X POST https://SEU_SERVIDOR:3443/api/messages/broadcast \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "sessionId": "session-name",
@@ -96,7 +102,7 @@ curl -X POST https://SEU_SERVIDOR:3443/api/messages/broadcast \
 
 ```bash
 curl -X POST https://SEU_SERVIDOR:3443/api/autoreplies \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "sessionId": "session-name",
@@ -110,7 +116,7 @@ curl -X POST https://SEU_SERVIDOR:3443/api/autoreplies \
 
 ```bash
 curl -X POST https://SEU_SERVIDOR:3443/api/scheduler \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "sessionId": "session-name",
@@ -124,7 +130,7 @@ curl -X POST https://SEU_SERVIDOR:3443/api/scheduler \
 
 ```bash
 curl -X POST https://SEU_SERVIDOR:3443/api/webhooks \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "My Webhook",
@@ -139,7 +145,7 @@ curl -X POST https://SEU_SERVIDOR:3443/api/webhooks \
 
 ```bash
 curl https://SEU_SERVIDOR:3443/api/chat/session-name \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ### 10. Get Messages from a Chat
@@ -147,28 +153,28 @@ curl https://SEU_SERVIDOR:3443/api/chat/session-name \
 ```bash
 # URL-encode the JID
 curl https://SEU_SERVIDOR:3443/api/chat/session-name/6281234567890%40s.whatsapp.net \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ### 11. Get Contacts (Paginated)
 
 ```bash
 curl "https://SEU_SERVIDOR:3443/api/contacts?sessionId=session-name&page=1&limit=20&search=john" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ### 12. Get Groups
 
 ```bash
 curl "https://SEU_SERVIDOR:3443/api/groups?sessionId=session-name" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ### 13. Create a Group
 
 ```bash
 curl -X POST https://SEU_SERVIDOR:3443/api/groups/create \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "sessionId": "session-name",
@@ -184,7 +190,7 @@ curl -X POST https://SEU_SERVIDOR:3443/api/groups/create \
 
 ```bash
 curl -X POST https://SEU_SERVIDOR:3443/api/sessions/session-name/bot-config \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "enabled": true,
@@ -202,7 +208,7 @@ curl -X POST https://SEU_SERVIDOR:3443/api/sessions/session-name/bot-config \
 
 ```bash
 curl -X POST https://SEU_SERVIDOR:3443/api/status/update \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "sessionId": "session-name",

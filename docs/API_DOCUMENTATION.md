@@ -45,7 +45,7 @@ All endpoints require one of the following authentication methods:
 
 ```bash
 curl -X GET "https://SEU_SERVIDOR:3443/api/media/image.jpg" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -73,7 +73,7 @@ curl -X GET "https://SEU_SERVIDOR:3443/api/media/image.jpg" \
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/groups/session-01/628123456789@s.whatsapp.net/leave" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -126,7 +126,7 @@ Get all groups associated with the session
 
 ```bash
 curl -X GET "https://SEU_SERVIDOR:3443/api/groups/session-01" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -212,7 +212,7 @@ Content-Type: application/json
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/groups/session-01/create" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"subject":"VIP Customers","participants":["628123456789@s.whatsapp.net"]}'
 ```
@@ -283,7 +283,7 @@ Content-Type: application/json
 
 ```bash
 curl -X PUT "https://SEU_SERVIDOR:3443/api/groups/session-01/628123456789@s.whatsapp.net/subject" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"subject":"string"}'
 ```
@@ -358,7 +358,7 @@ Content-Type: application/json
 
 ```bash
 curl -X PUT "https://SEU_SERVIDOR:3443/api/groups/628123456789@s.whatsapp.net/subject" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"sessionId":"string","subject":"string"}'
 ```
@@ -437,7 +437,7 @@ Content-Type: application/json
 
 ```bash
 curl -X PUT "https://SEU_SERVIDOR:3443/api/groups/session-01/628123456789@s.whatsapp.net/members" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"action":"add","participants":["string"]}'
 ```
@@ -488,7 +488,7 @@ curl -X PUT "https://SEU_SERVIDOR:3443/api/groups/session-01/628123456789@s.what
 
 ```bash
 curl -X PUT "https://SEU_SERVIDOR:3443/api/groups/session-01/628123456789@s.whatsapp.net/invite" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -535,7 +535,7 @@ curl -X PUT "https://SEU_SERVIDOR:3443/api/groups/session-01/628123456789@s.what
 
 ```bash
 curl -X GET "https://SEU_SERVIDOR:3443/api/groups/session-01/628123456789@s.whatsapp.net/invite" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -595,7 +595,7 @@ Get detailed group information
 
 ```bash
 curl -X GET "https://SEU_SERVIDOR:3443/api/groups/session-01/628123456789@s.whatsapp.net" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -641,7 +641,7 @@ Content-Type: application/json
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/groups/628123456789@s.whatsapp.net/leave" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"sessionId":"string"}'
 ```
@@ -714,7 +714,7 @@ Content-Type: application/json
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/groups/session-01/invite/accept" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"inviteCode":"string"}'
 ```
@@ -742,7 +742,7 @@ curl -X POST "https://SEU_SERVIDOR:3443/api/groups/session-01/invite/accept" \
 
 ```bash
 curl -X DELETE "https://SEU_SERVIDOR:3443/api/groups/session-01/628123456789@s.whatsapp.net/picture" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -789,7 +789,7 @@ Content-Type: application/json
 
 ```bash
 curl -X PUT "https://SEU_SERVIDOR:3443/api/groups/session-01/628123456789@s.whatsapp.net/picture" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -F "file=@/path/to/file.jpg" \
   -F "type=image" \
   -F "caption=Hello"
@@ -841,7 +841,7 @@ Content-Type: application/json
 
 ```bash
 curl -X PUT "https://SEU_SERVIDOR:3443/api/groups/session-01/628123456789@s.whatsapp.net/settings" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"setting":"announcement","value":true}'
 ```
@@ -910,7 +910,7 @@ Content-Type: application/json
 
 ```bash
 curl -X PUT "https://SEU_SERVIDOR:3443/api/groups/session-01/628123456789@s.whatsapp.net/description" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"description":"string"}'
 ```
@@ -979,7 +979,7 @@ Content-Type: application/json
 
 ```bash
 curl -X PUT "https://SEU_SERVIDOR:3443/api/groups/session-01/628123456789@s.whatsapp.net/ephemeral" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"expiration":0}'
 ```
@@ -1002,7 +1002,7 @@ curl -X PUT "https://SEU_SERVIDOR:3443/api/groups/session-01/628123456789@s.what
 
 ```bash
 curl -X GET "https://SEU_SERVIDOR:3443/api/docs" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -1029,7 +1029,7 @@ curl -X GET "https://SEU_SERVIDOR:3443/api/docs" \
 
 ```bash
 curl -X GET "https://SEU_SERVIDOR:3443/api/chats/by-label/label_01" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -1077,7 +1077,7 @@ Content-Type: application/json
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/auth/register" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"name":"John Doe","email":"john@example.com","password":"password123"}'
 ```
@@ -1120,7 +1120,7 @@ Check if the user is authenticated in the web dashboard
 
 ```bash
 curl -X GET "https://SEU_SERVIDOR:3443/api/auth/session" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -1155,7 +1155,7 @@ Retrieve CSRF token for form submissions
 
 ```bash
 curl -X GET "https://SEU_SERVIDOR:3443/api/auth/csrf" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -1210,7 +1210,7 @@ Get all sessions accessible to the authenticated user (role-based filtering)
 
 ```bash
 curl -X GET "https://SEU_SERVIDOR:3443/api/sessions" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -1300,7 +1300,7 @@ Content-Type: application/json
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/sessions" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"name":"Marketing Bot","sessionId":"marketing-1"}'
 ```
@@ -1353,7 +1353,7 @@ Retrieve QR code (string and base64 image) for WhatsApp pairing
 
 ```bash
 curl -X GET "https://SEU_SERVIDOR:3443/api/sessions/sales-01/qr" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -1378,7 +1378,7 @@ curl -X GET "https://SEU_SERVIDOR:3443/api/sessions/sales-01/qr" \
 
 ```bash
 curl -X GET "https://SEU_SERVIDOR:3443/api/sessions/abc123/bot-config" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -1499,7 +1499,7 @@ Content-Type: application/json
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/sessions/abc123/bot-config" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"enabled":true,"botMode":"BLACKLIST","botBlockedJids":["628123456789@s.whatsapp.net"],"autoReplyMode":"SPECIFIC","autoReplyAllowedJids":["628123456789@s.whatsapp.net"],"botName":"My Assistant","enableSticker":true}'
 ```
@@ -1564,7 +1564,7 @@ Get detailed information about a specific session including uptime and status
 
 ```bash
 curl -X GET "https://SEU_SERVIDOR:3443/api/sessions/abc123" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -1614,7 +1614,7 @@ Start, stop, restart, or logout a session
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/sessions/abc123/start" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -1663,7 +1663,7 @@ Content-Type: application/json
 
 ```bash
 curl -X PATCH "https://SEU_SERVIDOR:3443/api/sessions/abc123/settings" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"config":{"readReceipts":true,"rejectCalls":true}}'
 ```
@@ -1712,7 +1712,7 @@ Permanently deletes session and logs out from WhatsApp
 
 ```bash
 curl -X DELETE "https://SEU_SERVIDOR:3443/api/sessions/abc123/settings" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -1775,7 +1775,7 @@ Get all users who have been granted access to the specified session. Only the se
 
 ```bash
 curl -X GET "https://SEU_SERVIDOR:3443/api/sessions/marketing-1/access" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -1828,7 +1828,7 @@ Content-Type: application/json
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/sessions/marketing-1/access" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"email":"staff@example.com"}'
 ```
@@ -1902,7 +1902,7 @@ Content-Type: application/json
 
 ```bash
 curl -X DELETE "https://SEU_SERVIDOR:3443/api/sessions/marketing-1/access" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"userId":"clx456ghi"}'
 ```
@@ -1995,7 +1995,7 @@ Content-Type: application/json
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/messages/sales-01/628123456789@s.whatsapp.net/send" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"message":{"text":"Hello from ZapHub!"},"mentions":["628123456789@s.whatsapp.net"]}'
 ```
@@ -2075,7 +2075,7 @@ Content-Type: application/json
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/messages/session-01/628123456789@s.whatsapp.net/media" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -F "file=@/path/to/file.jpg" \
   -F "type=image" \
   -F "caption=Hello"
@@ -2186,7 +2186,7 @@ Content-Type: application/json
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/messages/session-01/628123456789@s.whatsapp.net/interactive" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"title":"Interactive Message Title","body":"Hello! Please select one of the options below:","footer":"Powered by ZapHub","header":{"title":"Announcement","image":{"url":"https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800"}},"buttons":[{"type":"quick_reply","displayText":"Confirm Order","id":"btn_confirm","url":"https://example.com","phoneNumber":"+628123456789","copyCode":"PROMO2026","title":"Menu List","sections":[{"title":"Available Packages","rows":[{"id":"pkg_basic","title":"Basic Plan","description":"Affordable starter package"}]}]}]}'
 ```
@@ -2263,7 +2263,7 @@ Content-Type: application/json
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/messages/session-01/broadcast" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"recipients":["628123456789@s.whatsapp.net","628987654321@s.whatsapp.net"],"message":"Flash Sale! 50% off","delay":0}'
 ```
@@ -2331,7 +2331,7 @@ Retrieve list of past broadcasts with status, sent/failed counts (persisted in D
 
 ```bash
 curl -X GET "https://SEU_SERVIDOR:3443/api/messages/session-01/broadcast/history?limit=value&offset=value" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -2398,7 +2398,7 @@ Retrieve full detail of a specific broadcast including per-recipient status
 
 ```bash
 curl -X GET "https://SEU_SERVIDOR:3443/api/messages/session-01/broadcast/history/value" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -2473,7 +2473,7 @@ Content-Type: application/json
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/messages/session-01/628123456789@s.whatsapp.net/poll" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"question":"What's your favorite product?","options":["Product A","Product B","Product C"],"selectableCount":1}'
 ```
@@ -2548,7 +2548,7 @@ Content-Type: application/json
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/messages/session-01/628123456789@s.whatsapp.net/location" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"latitude":-6.2088,"longitude":106.8456,"name":"Central Park","address":"Jakarta, Indonesia"}'
 ```
@@ -2622,7 +2622,7 @@ Content-Type: application/json
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/messages/session-01/628123456789@s.whatsapp.net/contact" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"contacts":[{"displayName":"John Doe","vcard":"BEGIN:VCARD..."}]}'
 ```
@@ -2655,7 +2655,7 @@ Download media from a message (direct binary or redirect)
 
 ```bash
 curl -X GET "https://SEU_SERVIDOR:3443/api/messages/session-01/download/MSG_ID_123/media" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -2725,7 +2725,7 @@ Content-Type: application/json
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/messages/session-01/628123456789@s.whatsapp.net/MSG_ID_123/react" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"emoji":"👍"}'
 ```
@@ -2806,7 +2806,7 @@ Content-Type: application/json
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/messages/sales-01/628123456789@s.whatsapp.net/3EB0ABCD1234567890/reply" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"message":{"text":"Thanks for your message!"},"mentions":["628123456789@s.whatsapp.net"],"fromMe":true}'
 ```
@@ -2888,7 +2888,7 @@ Content-Type: application/json
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/messages/sales-01/628123456789@s.whatsapp.net/reply" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"messageId":"3EB0ABCD1234567890","message":{"text":"Sure, let me check that for you!"}}'
 ```
@@ -2962,7 +2962,7 @@ Content-Type: application/json
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/messages/session-01/628123456789@s.whatsapp.net/MSG_ID_123/star" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"star":true,"fromMe":false}'
 ```
@@ -3038,7 +3038,7 @@ Search messages stored in the database for a session. Supports full-text search,
 
 ```bash
 curl -X GET "https://SEU_SERVIDOR:3443/api/messages/sales-01/search?q=invoice&jid=628123456789@s.whatsapp.net&type=value&fromMe=value&page=value&limit=value" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -3113,7 +3113,7 @@ Content-Type: application/json
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/messages/session-01/628123456789@s.whatsapp.net/list" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"title":"Our Services","options":["Web Dev","App Dev","UI/UX"],"footer":"Choose one"}'
 ```
@@ -3188,7 +3188,7 @@ Content-Type: application/json
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/messages/session-01/628123456789@s.whatsapp.net/spam" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"message":"Check our new catalog!","count":5,"delay":1000}'
 ```
@@ -3265,7 +3265,7 @@ Content-Type: application/json
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/messages/session-01/628123456789@s.whatsapp.net/sticker" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -F "file=@/path/to/file.jpg" \
   -F "type=image" \
   -F "caption=Hello"
@@ -3342,7 +3342,7 @@ Content-Type: application/json
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/messages/session-01/forward" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"fromJid":"628123456789@s.whatsapp.net","messageId":"3EB0ABCD1234567890","toJids":["628987654321@s.whatsapp.net"]}'
 ```
@@ -3393,7 +3393,7 @@ Delete message (only works for messages < 7 minutes old)
 
 ```bash
 curl -X DELETE "https://SEU_SERVIDOR:3443/api/messages/session-01/628123456789@s.whatsapp.net/MSG_ID_123" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -3464,7 +3464,7 @@ Content-Type: application/json
 
 ```bash
 curl -X PATCH "https://SEU_SERVIDOR:3443/api/messages/session-01/628123456789@s.whatsapp.net/MSG_ID_123" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"text":"Updated text message"}'
 ```
@@ -3508,7 +3508,7 @@ Retrieve all contacts with last message for a session
 
 ```bash
 curl -X GET "https://SEU_SERVIDOR:3443/api/chat/session-01" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -3536,7 +3536,7 @@ Fetch up to 100 messages for a chat (enriched with participant info for groups)
 
 ```bash
 curl -X GET "https://SEU_SERVIDOR:3443/api/chat/session-01/628123456789@s.whatsapp.net" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -3607,7 +3607,7 @@ Content-Type: application/json
 
 ```bash
 curl -X PUT "https://SEU_SERVIDOR:3443/api/chat/session-01/628123456789@s.whatsapp.net/read" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"messageIds":["string"]}'
 ```
@@ -3679,7 +3679,7 @@ Content-Type: application/json
 
 ```bash
 curl -X PUT "https://SEU_SERVIDOR:3443/api/chat/session-01/628123456789@s.whatsapp.net/archive" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"archive":true}'
 ```
@@ -3753,7 +3753,7 @@ Content-Type: application/json
 
 ```bash
 curl -X PUT "https://SEU_SERVIDOR:3443/api/chat/session-01/628123456789@s.whatsapp.net/mute" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"mute":true,"duration":3600}'
 ```
@@ -3825,7 +3825,7 @@ Content-Type: application/json
 
 ```bash
 curl -X PUT "https://SEU_SERVIDOR:3443/api/chat/session-01/628123456789@s.whatsapp.net/pin" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"pin":true}'
 ```
@@ -3897,7 +3897,7 @@ Content-Type: application/json
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/chat/session-01/628123456789@s.whatsapp.net/presence" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"presence":"composing"}'
 ```
@@ -3951,7 +3951,7 @@ Get profile picture URL for a contact or group
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/chat/session-01/628123456789@s.whatsapp.net/profile-picture" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -4030,7 +4030,7 @@ Content-Type: application/json
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/chat/session-01/check" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"numbers":["628123456789","628987654321"]}'
 ```
@@ -4084,7 +4084,7 @@ Fetch profile information of the connected WhatsApp account
 
 ```bash
 curl -X GET "https://SEU_SERVIDOR:3443/api/profile/session-01" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -4155,7 +4155,7 @@ Content-Type: application/json
 
 ```bash
 curl -X PUT "https://SEU_SERVIDOR:3443/api/profile/session-01/name" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"name":"string"}'
 ```
@@ -4228,7 +4228,7 @@ Content-Type: application/json
 
 ```bash
 curl -X PUT "https://SEU_SERVIDOR:3443/api/profile/session-01/status" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"status":"string"}'
 ```
@@ -4278,7 +4278,7 @@ curl -X PUT "https://SEU_SERVIDOR:3443/api/profile/session-01/status" \
 
 ```bash
 curl -X DELETE "https://SEU_SERVIDOR:3443/api/profile/session-01/picture" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -4349,7 +4349,7 @@ Content-Type: application/json
 
 ```bash
 curl -X PUT "https://SEU_SERVIDOR:3443/api/profile/session-01/picture" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -F "file=@/path/to/file.jpg" \
   -F "type=image" \
   -F "caption=Hello"
@@ -4379,7 +4379,7 @@ curl -X PUT "https://SEU_SERVIDOR:3443/api/profile/session-01/picture" \
 
 ```bash
 curl -X DELETE "https://SEU_SERVIDOR:3443/api/autoreplies/session-01" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -4409,7 +4409,7 @@ curl -X DELETE "https://SEU_SERVIDOR:3443/api/autoreplies/session-01" \
 
 ```bash
 curl -X GET "https://SEU_SERVIDOR:3443/api/autoreplies/session-01" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -4470,7 +4470,7 @@ Content-Type: application/json
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/autoreplies/session-01" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"keyword":"hello","response":"Hi there! How can I help?","matchType":"EXACT","triggerType":"ALL","isMedia":false,"mediaUrl":null,"mediaType":null}'
 ```
@@ -4501,7 +4501,7 @@ curl -X POST "https://SEU_SERVIDOR:3443/api/autoreplies/session-01" \
 
 ```bash
 curl -X DELETE "https://SEU_SERVIDOR:3443/api/autoreplies/session-01/reply_01" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -4562,7 +4562,7 @@ Content-Type: application/json
 
 ```bash
 curl -X PUT "https://SEU_SERVIDOR:3443/api/autoreplies/session-01/reply_01" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"keyword":"hello","response":"Hi there! How can I help?","matchType":"EXACT","triggerType":"ALL","isMedia":false,"mediaUrl":null,"mediaType":null}'
 ```
@@ -4591,7 +4591,7 @@ curl -X PUT "https://SEU_SERVIDOR:3443/api/autoreplies/session-01/reply_01" \
 
 ```bash
 curl -X DELETE "https://SEU_SERVIDOR:3443/api/scheduler/session-01" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -4619,7 +4619,7 @@ curl -X DELETE "https://SEU_SERVIDOR:3443/api/scheduler/session-01" \
 
 ```bash
 curl -X GET "https://SEU_SERVIDOR:3443/api/scheduler/session-01" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -4680,7 +4680,7 @@ Content-Type: application/json
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/scheduler/session-01" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"jid":"628123456789@s.whatsapp.net","content":"Reminder: Meeting in 10 mins","sendAt":"2024-12-25T10:00:00.000Z","mediaUrl":"https://example.com/image.jpg","mediaType":"image","cronExpression":"*/10 * * * *","recurrenceRule":"{\"type\":\"minutes\",\"value\":10}"}'
 ```
@@ -4711,7 +4711,7 @@ curl -X POST "https://SEU_SERVIDOR:3443/api/scheduler/session-01" \
 
 ```bash
 curl -X DELETE "https://SEU_SERVIDOR:3443/api/scheduler/session-01/sched_01" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -4773,7 +4773,7 @@ Content-Type: application/json
 
 ```bash
 curl -X PUT "https://SEU_SERVIDOR:3443/api/scheduler/session-01/sched_01" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"jid":"628123456789@s.whatsapp.net","content":"Updated meeting reminder","sendAt":"2024-12-25T11:00:00.000Z","mediaUrl":"https://example.com/image.jpg","mediaType":"image","cronExpression":null,"recurrenceRule":null}'
 ```
@@ -4794,7 +4794,7 @@ curl -X PUT "https://SEU_SERVIDOR:3443/api/scheduler/session-01/sched_01" \
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/scheduler" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -4823,7 +4823,7 @@ curl -X POST "https://SEU_SERVIDOR:3443/api/scheduler" \
 
 ```bash
 curl -X GET "https://SEU_SERVIDOR:3443/api/webhooks/session-01" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -4880,7 +4880,7 @@ Content-Type: application/json
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/webhooks/session-01" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"name":"string","url":"string","secret":"string","events":["string"]}'
 ```
@@ -4911,7 +4911,7 @@ curl -X POST "https://SEU_SERVIDOR:3443/api/webhooks/session-01" \
 
 ```bash
 curl -X DELETE "https://SEU_SERVIDOR:3443/api/webhooks/session-01/abc123" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -4971,7 +4971,7 @@ Content-Type: application/json
 
 ```bash
 curl -X PUT "https://SEU_SERVIDOR:3443/api/webhooks/session-01/abc123" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"name":"string","url":"string","secret":"string","events":["string"],"isActive":true}'
 ```
@@ -5015,7 +5015,7 @@ curl -X PUT "https://SEU_SERVIDOR:3443/api/webhooks/session-01/abc123" \
 
 ```bash
 curl -X DELETE "https://SEU_SERVIDOR:3443/api/webhooks/abc123" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -5070,7 +5070,7 @@ Fire a test payload to verify the webhook endpoint is reachable and responding c
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/webhooks/session-01/abc123/test" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -5144,7 +5144,7 @@ Retrieve delivery history for a specific webhook
 
 ```bash
 curl -X GET "https://SEU_SERVIDOR:3443/api/webhooks/session-01/abc123/logs?limit=value&offset=value" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -5351,7 +5351,7 @@ ZapHub includes built-in webhook test payload. You can also trigger test event m
 ```bash
 # Create webhook with secret
 curl -X POST "https://SEU_SERVIDOR:3443/api/webhooks/session-01" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Test HMAC",
@@ -5695,7 +5695,7 @@ Content-Type: application/json
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/users" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"name":"string","email":"string","password":"string","role":"SUPERADMIN"}'
 ```
@@ -5736,7 +5736,7 @@ curl -X POST "https://SEU_SERVIDOR:3443/api/users" \
 
 ```bash
 curl -X GET "https://SEU_SERVIDOR:3443/api/users" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -5781,7 +5781,7 @@ curl -X GET "https://SEU_SERVIDOR:3443/api/users" \
 
 ```bash
 curl -X DELETE "https://SEU_SERVIDOR:3443/api/users/abc123" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -5863,7 +5863,7 @@ Content-Type: application/json
 
 ```bash
 curl -X PATCH "https://SEU_SERVIDOR:3443/api/users/abc123" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"name":"string","email":"string","password":"string","role":"SUPERADMIN"}'
 ```
@@ -5900,7 +5900,7 @@ curl -X PATCH "https://SEU_SERVIDOR:3443/api/users/abc123" \
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/user/api-key" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -5941,7 +5941,7 @@ curl -X POST "https://SEU_SERVIDOR:3443/api/user/api-key" \
 
 ```bash
 curl -X DELETE "https://SEU_SERVIDOR:3443/api/user/api-key" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -5975,7 +5975,7 @@ curl -X DELETE "https://SEU_SERVIDOR:3443/api/user/api-key" \
 
 ```bash
 curl -X GET "https://SEU_SERVIDOR:3443/api/user/api-key" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -6051,7 +6051,7 @@ Content-Type: application/json
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/labels/session-01" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"name":"Important","color":0}'
 ```
@@ -6078,7 +6078,7 @@ curl -X POST "https://SEU_SERVIDOR:3443/api/labels/session-01" \
 
 ```bash
 curl -X PUT "https://SEU_SERVIDOR:3443/api/labels/session-01" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -6103,7 +6103,7 @@ curl -X PUT "https://SEU_SERVIDOR:3443/api/labels/session-01" \
 
 ```bash
 curl -X DELETE "https://SEU_SERVIDOR:3443/api/labels/session-01" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -6156,7 +6156,7 @@ Get all labels with chat count
 
 ```bash
 curl -X GET "https://SEU_SERVIDOR:3443/api/labels/session-01" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -6202,7 +6202,7 @@ curl -X GET "https://SEU_SERVIDOR:3443/api/labels/session-01" \
 
 ```bash
 curl -X DELETE "https://SEU_SERVIDOR:3443/api/labels/session-01/label_01" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -6272,7 +6272,7 @@ Content-Type: application/json
 
 ```bash
 curl -X PUT "https://SEU_SERVIDOR:3443/api/labels/session-01/label_01" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"name":"string","color":0}'
 ```
@@ -6323,7 +6323,7 @@ curl -X PUT "https://SEU_SERVIDOR:3443/api/labels/session-01/label_01" \
 
 ```bash
 curl -X GET "https://SEU_SERVIDOR:3443/api/labels/session-01/chat/628123456789@s.whatsapp.net/labels" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -6399,7 +6399,7 @@ Content-Type: application/json
 
 ```bash
 curl -X PUT "https://SEU_SERVIDOR:3443/api/labels/session-01/chat/628123456789@s.whatsapp.net/labels" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"labelIds":["string"],"action":"add"}'
 ```
@@ -6456,7 +6456,7 @@ Get all chats associated with a specific label
 
 ```bash
 curl -X GET "https://SEU_SERVIDOR:3443/api/chats/session-01/by-label/label_01" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -6530,7 +6530,7 @@ Content-Type: application/json
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/notifications" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"title":"Maintenance","message":"System update in 5 minutes","type":"INFO","href":"/settings","targetUserId":"string","broadcast":true}'
 ```
@@ -6572,7 +6572,7 @@ Get the last 50 notifications for the authenticated user
 
 ```bash
 curl -X GET "https://SEU_SERVIDOR:3443/api/notifications" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -6638,7 +6638,7 @@ Content-Type: application/json
 
 ```bash
 curl -X PATCH "https://SEU_SERVIDOR:3443/api/notifications/read" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"ids":["string"]}'
 ```
@@ -6688,7 +6688,7 @@ curl -X PATCH "https://SEU_SERVIDOR:3443/api/notifications/read" \
 
 ```bash
 curl -X DELETE "https://SEU_SERVIDOR:3443/api/notifications/delete?id=abc123" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -6760,7 +6760,7 @@ Content-Type: application/json
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/settings/system" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"appName":"string","logoUrl":"string","timezone":"string"}'
 ```
@@ -6801,7 +6801,7 @@ curl -X POST "https://SEU_SERVIDOR:3443/api/settings/system" \
 
 ```bash
 curl -X GET "https://SEU_SERVIDOR:3443/api/settings/system" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -6885,7 +6885,7 @@ Content-Type: application/json
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/status/session-01/update" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"content":"string","type":"TEXT","mediaUrl":"string","backgroundColor":0,"font":0,"mentions":["string"]}'
 ```
@@ -6968,7 +6968,7 @@ Content-Type: application/json
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/status/update" \
-  -H "X-API-Key: your-api-key" \
+  -H "X-API-Key: $ZAPHUB_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"sessionId":"string","content":"string","type":"TEXT","mediaUrl":"string","backgroundColor":0,"font":0,"mentions":["string"]}'
 ```
@@ -7011,7 +7011,7 @@ Checks for new releases on GitHub and creates a system notification if a newer v
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/system/check-updates" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -7058,7 +7058,7 @@ curl -X POST "https://SEU_SERVIDOR:3443/api/system/check-updates" \
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/contacts/session-01/628123456789@s.whatsapp.net/block" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
@@ -7103,7 +7103,7 @@ curl -X POST "https://SEU_SERVIDOR:3443/api/contacts/session-01/628123456789@s.w
 
 ```bash
 curl -X POST "https://SEU_SERVIDOR:3443/api/contacts/session-01/628123456789@s.whatsapp.net/unblock" \
-  -H "X-API-Key: your-api-key"
+  -H "X-API-Key: $ZAPHUB_API_KEY"
 ```
 
 ---
