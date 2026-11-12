@@ -93,9 +93,10 @@ export async function getChatMessages(
     if (!session) throw new Error("Session not found");
 
     const { messages, hasMore } = await ChatService.getMessages(session.id, jid, limit, before);
+    const conferidas = await paraTela(messages);
 
     return {
-        messages: messages.map((msg: any) => ({
+        messages: conferidas.map((msg: any) => ({
             ...msg,
             timestamp: msg.timestamp instanceof Date
                 ? msg.timestamp.toISOString()
@@ -389,5 +390,28 @@ export async function pularParaMensagem(sessionId: string, jid: string, keyId: s
     if (!(await canAccessSession(user.id, user.role, sessionId))) throw new Error("Forbidden");
     const session = await prisma.session.findUnique({ where: { sessionId }, select: { id: true } });
     if (!session) throw new Error("Session not found");
-    return await ChatService.getMensagensAoRedor(session.id, jid, keyId, 25);
+    const r: any = await ChatService.getMensagensAoRedor(session.id, jid, keyId, 25);
+    return r?.messages ? { ...r, messages: await paraTela(r.messages) } : r;
+}
+
+/**
+ * minha versao: prepara as mensagens para a tela. Midia cujo arquivo sumiu do disco aparece como indisponivel;
+ * com os dados de download guardados, mostra "tentar de novo" (baixa de novo do WhatsApp enquanto ele tiver a midia).
+ * Os dados de download nunca vao para o navegador (extraParaTela).
+ */
+async function paraTela(messages: any[]): Promise<any[]> {
+    const { localizarMidia, nomeDoMediaUrl } = await import("@/lib/pasta-midia");
+    const { extraParaTela } = await import("@/lib/midia-fila");
+    return Promise.all(messages.map(async (msg: any) => {
+        let m = msg;
+        if (msg.mediaUrl) {
+            const nome = nomeDoMediaUrl(msg.mediaUrl);
+            if (nome && !(await localizarMidia(nome))) {
+                const extra: any = { ...(msg.extra || {}) };
+                if (extra.midiaOrigem && !extra.midiaPendente) extra.midiaPendente = { falhou: true };
+                m = { ...msg, mediaUrl: null, extra };
+            }
+        }
+        return { ...m, extra: extraParaTela(m.extra) };
+    }));
 }

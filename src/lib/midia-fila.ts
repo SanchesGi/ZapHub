@@ -33,7 +33,22 @@ export function pegarMidiaEnviada(keyId?: string | null): Enviada | null {
 export const TIPOS_MIDIA = ["IMAGE", "VIDEO", "AUDIO", "DOCUMENT", "STICKER"];
 
 export function descritorMidia(msg: WAMessage) {
-    return { key: msg.key, m: JSON.stringify(msg.message, BufferJSON.replacer) };
+    // so o que o download precisa: sem miniaturas (pesam no banco) e sem contextInfo (texto citado, mencoes e
+    // numeros de outras pessoas, que a exclusao de dados de um titular nao alcancaria aqui dentro)
+    const FORA = new Set(["jpegThumbnail", "thumbnail", "pngThumbnail", "contextInfo"]);
+    const m = JSON.stringify(msg.message, (k, v) => (FORA.has(k) ? undefined : BufferJSON.replacer(k, v)));
+    return { key: msg.key, m };
+}
+
+/**
+ * minha versao: o que a TELA recebe de `extra`. Os dados de download (chave da midia no WhatsApp) ficam so no
+ * servidor; a tela so precisa saber se a midia esta baixando ou se falhou (para o botao "tentar de novo").
+ */
+export function extraParaTela(extra: any): any {
+    if (!extra || typeof extra !== "object") return extra;
+    const { midiaOrigem, midiaPendente, ...resto } = extra;
+    void midiaOrigem;
+    return midiaPendente ? { ...resto, midiaPendente: { falhou: !!midiaPendente.falhou } } : resto;
 }
 
 export function mensagemDoDescritor(d: any): WAMessage | null {
@@ -86,6 +101,8 @@ async function processar(t: Tarefa) {
         if (url) {
             const atual = await prisma.message.findUnique({ where: { sessionId_keyId: { sessionId: t.dbSessionId, keyId } }, select: { extra: true } });
             const extra: any = atual?.extra && typeof atual.extra === "object" ? { ...(atual.extra as any) } : {};
+            // guarda os dados de download: se o arquivo sumir do disco, da para baixar de novo pela tela
+            extra.midiaOrigem = extra.midiaPendente ? { key: extra.midiaPendente.key, m: extra.midiaPendente.m } : descritorMidia(t.msg);
             delete extra.midiaPendente;
             const m = await prisma.message.update({
                 where: { sessionId_keyId: { sessionId: t.dbSessionId, keyId } },
@@ -119,6 +136,7 @@ async function processar(t: Tarefa) {
 function emitir(sessionId: string, m: any) {
     (global as any).io?.to(sessionId).emit("message.update", [{
         ...m,
+        extra: extraParaTela(m.extra),
         sessionKey: sessionId,
         live: false,
         timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : m.timestamp,
@@ -128,11 +146,23 @@ function emitir(sessionId: string, m: any) {
 /** "tentar de novo" pela tela: refaz a fila a partir do descritor guardado na mensagem */
 export async function tentarMidiaDeNovo(sessionId: string, dbSessionId: string, keyId: string): Promise<boolean> {
     const m = await prisma.message.findUnique({ where: { sessionId_keyId: { sessionId: dbSessionId, keyId } }, select: { extra: true, mediaUrl: true } });
-    if (!m || m.mediaUrl) return !!m?.mediaUrl;
-    const msg = mensagemDoDescritor((m.extra as any)?.midiaPendente);
+    if (!m) return false;
+    // ja esta baixando (outra aba ou outro atendente clicou): nao agenda de novo
+    if ((m.extra as any)?.midiaPendente && !(m.extra as any).midiaPendente.falhou) return true;
+    let desc = (m.extra as any)?.midiaPendente;
+    if (m.mediaUrl) {
+        // ja tem arquivo registrado: so baixa de novo se ele sumiu do disco (e se ha os dados de download)
+        const { localizarMidia, nomeDoMediaUrl } = await import("./pasta-midia");
+        const nome = nomeDoMediaUrl(m.mediaUrl);
+        if (nome && (await localizarMidia(nome))) return true;
+        desc = (m.extra as any)?.midiaOrigem;
+    }
+    const msg = mensagemDoDescritor(desc);
     if (!msg) return false;
     const extra: any = { ...(m.extra as any) };
-    extra.midiaPendente = { ...extra.midiaPendente, falhou: false };
+    extra.midiaPendente = { key: desc.key, m: desc.m, falhou: false };
+    // o mediaUrl fica como esta: se o arquivo so parecia ausente (disco montando, pasta antiga), o ponteiro nao se perde;
+    // quando o download termina, processar() grava o mediaUrl de novo
     await prisma.message.update({ where: { sessionId_keyId: { sessionId: dbSessionId, keyId } }, data: { extra } });
     estado.naFila.delete(`${sessionId}:${keyId}`);
     agendarDownload({ sessionId, dbSessionId, msg });

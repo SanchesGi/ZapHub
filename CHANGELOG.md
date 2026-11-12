@@ -10,6 +10,18 @@ O número da versão segue o padrão `MAIOR.MENOR.CORREÇÃO`: a última parte s
 
 ---
 
+## 2.1.2 — 12/11/2026
+
+### Correções
+- **Mídia que sumiu do disco:** não aparece mais quebrada. As mídias recebidas ou enviadas a partir desta versão guardam os dados de download do WhatsApp: se o arquivo sumir (inclusive depois de "limpar mídias antigas" na Manutenção), a mensagem mostra **tentar de novo**, que baixa a mídia de novo enquanto o WhatsApp ainda a tiver. Mídias antigas, sem esses dados, aparecem como "Imagem indisponível no painel" (ou vídeo, áudio, arquivo).
+- Texto "O imagem não baixou" corrigido para "A imagem não baixou".
+
+### Segurança
+- O navegador e a API REST de mensagens deixam de receber os dados de download das mídias (a chave da mídia no WhatsApp): a tela só fica sabendo se a mídia está baixando ou se falhou. Saiu o evento de tempo real `message.upsert`, sem uso, que mandava a mensagem crua do WhatsApp.
+- Os dados de download guardados levam só o necessário para baixar (sem texto citado nem números de terceiros), e a retenção de mídias da LGPD apaga esses dados junto com o arquivo.
+
+---
+
 ## 2.1.1 — 12/11/2026
 
 Correções de uma revisão de segurança das versões 2.0.1 e 2.1.0.

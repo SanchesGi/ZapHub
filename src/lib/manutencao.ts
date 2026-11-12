@@ -193,11 +193,9 @@ export async function limpar(id: ItemEspaco["id"], dias?: number): Promise<{ ok:
             const d = Math.floor(Number(dias));
             if (!Number.isFinite(d) || d < 7) return { ok: false, erro: "Escolha pelo menos 7 dias." };
             const r = await apagarMidiasAntigas(d);
-            // as mensagens ficam sem arquivo: a tela mostra o botao de baixar de novo do WhatsApp (enquanto existir la)
-            for (let i = 0; i < r.nomes.length; i += 500) {
-                const urls = r.nomes.slice(i, i + 500).map((n) => `/api/media/${n}`);
-                await prisma.message.updateMany({ where: { mediaUrl: { in: urls } }, data: { mediaUrl: null } }).catch(() => null);
-            }
+            // as mensagens continuam apontando para o arquivo: sem ele no disco, a tela mostra "tentar de novo"
+            // (baixa de novo do WhatsApp enquanto existir la, com os dados de download guardados na mensagem).
+            // A retencao da LGPD e diferente: ela apaga tambem os dados de download (lib/retencao.ts).
             return { ok: true, liberados: r.bytes, detalhe: `${r.apagados} arquivo(s) com mais de ${d} dias` };
         }
         case "build-antigo":

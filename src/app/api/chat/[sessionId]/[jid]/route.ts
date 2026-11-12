@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { extraParaTela } from "@/lib/midia-fila";
 import { resolveToPhoneJid, isLidJid } from "@/lib/jid-utils";
 import { NextResponse, NextRequest } from "next/server";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
@@ -71,11 +72,11 @@ export async function GET(
                     };
                 });
 
-                return NextResponse.json({ status: true, data: enrichedMessages });
+                return NextResponse.json({ status: true, data: enrichedMessages.map((m: any) => ({ ...m, extra: extraParaTela(m.extra) })) });
             }
         }
 
-        return NextResponse.json({ status: true, data: messages });
+        return NextResponse.json({ status: true, data: messages.map((m: any) => ({ ...m, extra: extraParaTela(m.extra) })) });
     } catch (error) {
         console.error("Fetch messages error:", error);
         return NextResponse.json({ status: false, message: 'Failed to fetch messages', error: 'Failed to fetch messages' }, { status: 500 });

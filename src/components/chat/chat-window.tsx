@@ -316,6 +316,7 @@ function MidiaPendente({ msg, sessionId }: { msg: Message; sessionId: string }) 
     const [pedindo, setPedindo] = useState(false);
     const pend = msg.extra?.midiaPendente;
     const rotulo = msg.type === "IMAGE" ? "imagem" : msg.type === "VIDEO" ? "vídeo" : msg.type === "AUDIO" ? "áudio" : msg.type === "STICKER" ? "figurinha" : "arquivo";
+    const artigo = msg.type === "IMAGE" || msg.type === "STICKER" ? "A" : "O"; // "A imagem", "O vídeo"
     if (pend && !pend.falhou) {
         return (
             <div className={cn("mb-1.5 flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs", msg.fromMe ? "bg-black/5 dark:bg-white/10" : "bg-muted/50")}>
@@ -326,7 +327,7 @@ function MidiaPendente({ msg, sessionId }: { msg: Message; sessionId: string }) 
     return (
         <div className={cn("mb-1.5 flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs", msg.fromMe ? "bg-black/5 dark:bg-white/10" : "bg-muted/50")}>
             <ImageOff className="h-3.5 w-3.5 shrink-0" />
-            <span className="flex-1">{pend ? `O ${rotulo} não baixou do WhatsApp.` : `${rotulo[0].toUpperCase()}${rotulo.slice(1)} indisponível no painel.`}</span>
+            <span className="flex-1">{pend ? `${artigo} ${rotulo} não baixou do WhatsApp.` : `${rotulo[0].toUpperCase()}${rotulo.slice(1)} indisponível no painel.`}</span>
             {pend && (
                 <button type="button" disabled={pedindo} className="font-semibold underline underline-offset-2 disabled:opacity-50 cursor-pointer"
                     onClick={(e) => {

@@ -7,7 +7,7 @@ import { resolveToPhoneJid, isLidJid, normalizeJid } from "@/lib/jid-utils";
 import { nomeAgentePendente, enviadaPelaPlataforma } from "@/lib/agente";
 import { comRetry1020 } from "./groups";
 import { registrarApagada, apagandoPeloPainel } from "@/lib/auditoria";
-import { agendarDownload, descritorMidia, TIPOS_MIDIA } from "@/lib/midia-fila";
+import { agendarDownload, descritorMidia, extraParaTela, TIPOS_MIDIA } from "@/lib/midia-fila";
 import { registrarFixacao, estadosDe } from "./estado-chat";
 import { lidaAte, avisarSeFicouLida } from "@/lib/leitura";
 import { previaDoWhatsApp } from "@/lib/previa-link";
@@ -182,10 +182,8 @@ export const bindSessionStore = (sock: WASocket, sessionId: string, io: Server |
             logger.debug("Store", `Received ${messages.length} messages of type: ${type}`);
         }
 
-        // Emit to socket room for real-time frontend updates
-        if (type === 'notify' || type === 'append') {
-            io?.to(sessionId).emit('message.upsert', { messages, type, sessionKey: sessionId });
-        }
+        // minha versao: removido o evento 'message.upsert', que mandava a mensagem crua do WhatsApp (com a chave das
+        // midias) para o navegador e nao tinha ouvinte. A tela recebe 'message.update', ja preparado (extraParaTela).
 
         // Ensure we have the database session ID
         if (!dbSessionId) {
@@ -235,6 +233,7 @@ export const bindSessionStore = (sock: WASocket, sessionId: string, io: Server |
             try { estados = await estadosDe(dbSessionId, [...new Set(processedMessages.map((m: any) => m.remoteJid))]); } catch { /* sem estado */ }
             const serialized = processedMessages.map((m: any) => ({
                 ...m,
+                extra: extraParaTela(m.extra),
                 sessionKey: sessionId, // minha versao: o navegador filtra por sessao (nao mistura sessoes)
                 live,
                 silenciada: estados.get(m.remoteJid)?.silenciada || false,
@@ -912,6 +911,9 @@ async function processAndSaveMessage(
         if (!fileUrl) {
             midiaNaFila = true;
             extra = { ...(extra || {}), midiaPendente: descritorMidia(msg) };
+        } else {
+            // minha versao: guarda os dados de download; se o arquivo sumir do disco, da para baixar de novo
+            extra = { ...(extra || {}), midiaOrigem: descritorMidia(msg) };
         }
     }
 

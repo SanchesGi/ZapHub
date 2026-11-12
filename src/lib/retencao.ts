@@ -2,6 +2,7 @@
 // (null = guardar para sempre). Roda todo dia as 03:00 no fuso do sistema (ver cron.ts) e sob demanda pelo painel.
 // Tudo em lotes pequenos para nao travar o banco. Nunca fala com o WhatsApp.
 import { prisma } from "./prisma";
+import { Prisma } from "@prisma/client";
 import { registrarAcesso } from "./log-acesso";
 import { apagarMidiasAntigas } from "./pasta-midia";
 import { apagarArquivosDeMidia } from "./lgpd-midia";
@@ -88,7 +89,8 @@ async function aplicarMidias(dias: number) {
     const r = await apagarMidiasAntigas(dias);
     for (let i = 0; i < r.nomes.length; i += LOTE) {
         const urls = r.nomes.slice(i, i + LOTE).map((n) => `/api/media/${n}`);
-        await prisma.message.updateMany({ where: { mediaUrl: { in: urls } }, data: { mediaUrl: null } });
+        // minha versao: midia vencida perde tambem os dados de download (a chave da midia no WhatsApp)
+        await prisma.$executeRaw`UPDATE \`Message\` SET mediaUrl = NULL, extra = JSON_REMOVE(extra, '$.midiaOrigem') WHERE mediaUrl IN (${Prisma.join(urls)})`;
         await prisma.auditoria.updateMany({ where: { mediaUrl: { in: urls } }, data: { mediaUrl: null } });
     }
     return { arquivos: r.apagados, bytes: r.bytes };
