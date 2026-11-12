@@ -10,6 +10,17 @@ O número da versão segue o padrão `MAIOR.MENOR.CORREÇÃO`: a última parte s
 
 ---
 
+## 2.1.3 — 12/11/2026
+
+### Segurança
+- **API de respostas (`/reply`):** as duas rotas de resposta mandavam o conteúdo recebido direto ao WhatsApp, sem conferir. Com acesso à sessão, dava para pedir uma "imagem" com endereço de arquivo do servidor (`file://...`) e o servidor enviaria esse arquivo. Agora o corpo é validado e a mídia só é aceita por URL `http(s)`, baixada pelo mesmo filtro seguro do envio normal.
+
+### Correções
+- **API de envio (`/send`):** voltou a enviar texto. Aceita `"message": "Olá"` ou `"message": { "text": "Olá" }` (antes dava erro 500 ou 400).
+- O campo `message` de `/send` e `/reply` aceita só campos conhecidos: `text`, `caption`, `image`, `video`, `audio`, `document`, `sticker` (mídia por URL), `fileName`, `mimetype` e `ptt`.
+
+---
+
 ## 2.1.2 — 12/11/2026
 
 ### Correções

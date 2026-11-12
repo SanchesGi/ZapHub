@@ -9,6 +9,7 @@ import {
 } from "@whiskeysockets/baileys";
 import crypto from "crypto";
 import { logger } from "@/lib/logger";
+import { prepararMidiaSegura } from "@/lib/midia-segura";
 
 export interface NativeButtonQuickReply {
     type?: "quick_reply";
@@ -459,8 +460,15 @@ export async function buildInteractiveMessage(
         }
     } else if (typeof header === "object" && header !== null) {
         const hMedia = header as InteractiveHeaderMedia;
-        if (hMedia.image || hMedia.video || hMedia.document) {
-            headerMedia = await prepareWAMessageMedia(hMedia as any, { upload: uploadFn });
+        // minha versao: monta so com a midia esperada (antes ia o objeto inteiro, e uma chave de midia a mais,
+        // fora do filtro, fazia o Baileys abrir um arquivo local)
+        const h: any = hMedia.image ? { image: hMedia.image }
+            : hMedia.video ? { video: hMedia.video }
+            : hMedia.document ? { document: hMedia.document }
+            : null;
+        if (h) {
+            const seguro = await prepararMidiaSegura(h);
+            headerMedia = await prepareWAMessageMedia(seguro, { upload: uploadFn });
         }
     }
 

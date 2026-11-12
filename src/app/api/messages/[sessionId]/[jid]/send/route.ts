@@ -3,10 +3,11 @@ import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
 import { ChatService } from "@/modules/whatsapp/chat.service";
 import { validarCorpo } from "@/lib/validar";
 import { z } from "zod";
+import { mensagemApiSchema, paraConteudo } from "@/lib/mensagem-api";
 
 const sendSchema = z.object({
-    message: z.string().min(1, "mensagem obrigatória").max(65536),
-    mentions: z.array(z.string()).optional(),
+    message: mensagemApiSchema, // minha versao: texto puro ou { text } / midia por URL (antes so texto, que quebrava no servico)
+    mentions: z.array(z.string().max(200)).max(1000).optional(),
     quotedMessageId: z.string().optional().nullable(),
 });
 
@@ -34,12 +35,16 @@ export async function POST(
         }
 
         // Send Message using ChatService
-        const result = await ChatService.sendTextMessage(sessionId, jid, message, mentions, quotedMessageId ?? undefined);
+        const result = await ChatService.sendTextMessage(sessionId, jid, paraConteudo(message), mentions, quotedMessageId ?? undefined);
 
         return NextResponse.json({ status: true, message: "Message sent successfully", data: result });
     } catch (error: any) {
         console.error("Send message error:", error);
-        const errorMsg = error?.message || "Failed to send message";
+        // minha versao: erro do filtro de rede pode citar enderecos internos; a resposta leva so o motivo geral
+        const bruto = String(error?.message || "");
+        const errorMsg = /SSRF|Network fetch|Network read|resolves to|Remote server responded|Download/i.test(bruto)
+            ? "Não consegui baixar a mídia da URL informada."
+            : bruto || "Failed to send message";
         return NextResponse.json({ status: false, message: errorMsg, error: errorMsg }, { status: 500 });
     }
 }

@@ -179,12 +179,13 @@ export async function safeFetchBuffer(
         } catch (err: any) {
             clearTimeout(timer);
             throw new Error(`Network fetch failed for '${currentUrl}': ${err.message}`);
-        } finally {
-            clearTimeout(timer);
         }
+        // minha versao: o prazo continua valendo durante a leitura do corpo (antes acabava nos cabecalhos e um
+        // servidor lento segurava o download para sempre); o timer e limpo nos pontos de saida abaixo
 
         // Handle redirects
         if (response.status >= 300 && response.status < 400) {
+            clearTimeout(timer);
             const location = response.headers.get("location");
             if (!location) {
                 throw new Error(`Redirect response (${response.status}) missing Location header`);
@@ -195,17 +196,20 @@ export async function safeFetchBuffer(
         }
 
         if (!response.ok) {
+            clearTimeout(timer);
             throw new Error(`Remote server responded with HTTP ${response.status} ${response.statusText}`);
         }
 
         // Check Content-Length header if present
         const contentLength = response.headers.get("content-length");
         if (contentLength && parseInt(contentLength, 10) > maxBytes) {
+            clearTimeout(timer);
             throw new Error(`File size (${contentLength} bytes) exceeds the maximum limit of ${maxBytes} bytes`);
         }
 
         // Stream body with byte counter
         if (!response.body) {
+            clearTimeout(timer);
             throw new Error("Empty response body from remote server");
         }
 
@@ -213,17 +217,27 @@ export async function safeFetchBuffer(
         const chunks: Uint8Array[] = [];
         let receivedBytes = 0;
 
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            if (value) {
-                receivedBytes += value.length;
-                if (receivedBytes > maxBytes) {
-                    reader.cancel();
-                    throw new Error(`Download exceeded maximum permitted size of ${maxBytes} bytes`);
+        try {
+            while (true) {
+                let parte: ReadableStreamReadResult<Uint8Array>;
+                try {
+                    parte = await reader.read();
+                } catch (err: any) {
+                    throw new Error(controller.signal.aborted ? `Download took longer than ${timeoutMs} ms` : `Network read failed: ${err.message}`);
                 }
-                chunks.push(value);
+                const { done, value } = parte;
+                if (done) break;
+                if (value) {
+                    receivedBytes += value.length;
+                    if (receivedBytes > maxBytes) {
+                        reader.cancel().catch(() => {});
+                        throw new Error(`Download exceeded maximum permitted size of ${maxBytes} bytes`);
+                    }
+                    chunks.push(value);
+                }
             }
+        } finally {
+            clearTimeout(timer);
         }
 
         const buffer = Buffer.concat(chunks);

@@ -3,6 +3,18 @@ import { waManager } from "@/modules/whatsapp/manager";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
 import { fireSentWebhook } from "@/lib/webhook";
 import { prisma } from "@/lib/prisma";
+import { z } from "zod";
+import { validarCorpo } from "@/lib/validar";
+import { ChatService } from "@/modules/whatsapp/chat.service";
+import { mensagemApiSchema, paraConteudo } from "@/lib/mensagem-api";
+
+// minha versao: o corpo e validado (antes o objeto ia cru ao WhatsApp: { image: { url: "file:///..." } } lia arquivos do servidor)
+const replySchema = z.object({
+    messageId: z.string().min(1).max(200),
+    message: mensagemApiSchema,
+    mentions: z.array(z.string().max(200)).max(1000).optional(),
+    fromMe: z.boolean().optional(),
+});
 
 /**
  * POST /api/messages/{sessionId}/{jid}/reply
@@ -22,8 +34,9 @@ export async function POST(
         const { sessionId, jid: rawJid } = await params;
         const jid = decodeURIComponent(rawJid);
 
-        const body = await request.json();
-        const { messageId, message, mentions, fromMe } = body;
+        const v = await validarCorpo(request, replySchema);
+        if (!v.ok) return v.resposta;
+        const { messageId, message, mentions, fromMe } = v.data;
 
         if (!messageId) {
             return NextResponse.json({ status: false, message: "messageId is required", error: "messageId is required" }, { status: 400 });
@@ -151,11 +164,7 @@ export async function POST(
         };
 
         // Process message payload (same as /send)
-        let msgPayload = message;
-
-        if (msgPayload.text && mentions && Array.isArray(mentions)) {
-            msgPayload.mentions = mentions;
-        }
+        const msgPayload = await ChatService.prepararConteudo(paraConteudo(message), mentions);
 
         // Send the reply with quoted reference
         const sendResult = await instance.socket.sendMessage(jid, msgPayload, {

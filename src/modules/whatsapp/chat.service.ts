@@ -574,53 +574,13 @@ export class ChatService {
         });
     }
 
-    static async sendTextMessage(sessionId: string, jid: string, messagePayload: any, mentions?: string[], quotedMessageId?: string) {
-        const instance = waManager.getInstance(sessionId);
-        if (!instance || !instance.socket) {
-            throw erroSemConexao();
-        }
-
-        // Handle quoted/reply message
-        let quotedOption: any = undefined;
-        if (quotedMessageId) {
-            try {
-                const dbSession = await prisma.session.findUnique({ where: { sessionId }, select: { id: true } });
-                if (dbSession) {
-                    const quotedMsg = await prisma.message.findFirst({
-                        where: { sessionId: dbSession.id, keyId: quotedMessageId },
-                        select: { keyId: true, remoteJid: true, fromMe: true, content: true, senderJid: true }
-                    });
-                    if (quotedMsg) {
-                        const rawParticipant = quotedMsg.fromMe 
-                            ? instance.socket.user?.id 
-                            : (quotedMsg.senderJid || quotedMsg.remoteJid);
-                        
-                        let cleanParticipant: string | undefined = undefined;
-                        if (rawParticipant) {
-                            const [userPart, domain] = rawParticipant.split('@');
-                            const cleanUser = userPart.split(':')[0];
-                            cleanParticipant = domain ? `${cleanUser}@${domain}` : cleanUser;
-                        }
-
-                        quotedOption = {
-                            key: {
-                                remoteJid: quotedMsg.remoteJid,
-                                fromMe: quotedMsg.fromMe,
-                                id: quotedMsg.keyId,
-                                participant: cleanParticipant
-                            },
-                            message: {
-                                conversation: quotedMsg.content || ""
-                            }
-                        };
-                    }
-                }
-            } catch (e) {
-                console.error("Error fetching quoted message (non-fatal):", e);
-            }
-        }
-
-        let msgPayload = { ...messagePayload };
+    /**
+     * minha versao: prepara o conteudo antes do Baileys: texto puro vira { text }, text com midia vira caption,
+     * midia por URL e baixada pelo filtro seguro (safeFetchBuffer) e mencoes entram no texto.
+     * Usado pelo envio do painel, por /send e pelas rotas /reply (antes /reply mandava o objeto cru ao WhatsApp).
+     */
+    static async prepararConteudo(messagePayload: any, mentions?: string[]): Promise<any> {
+        let msgPayload: any = typeof messagePayload === "string" ? { text: messagePayload } : { ...messagePayload };
 
         // Normalize "text" to "caption" if a media message is sent with "text"
         if (msgPayload.text && (msgPayload.image || msgPayload.video || msgPayload.document || msgPayload.audio)) {
@@ -687,6 +647,56 @@ export class ChatService {
         if (msgPayload.text && mentions && Array.isArray(mentions)) {
             msgPayload.mentions = mentions;
         }
+        return msgPayload;
+    }
+
+    static async sendTextMessage(sessionId: string, jid: string, messagePayload: any, mentions?: string[], quotedMessageId?: string) {
+        const instance = waManager.getInstance(sessionId);
+        if (!instance || !instance.socket) {
+            throw erroSemConexao();
+        }
+
+        // Handle quoted/reply message
+        let quotedOption: any = undefined;
+        if (quotedMessageId) {
+            try {
+                const dbSession = await prisma.session.findUnique({ where: { sessionId }, select: { id: true } });
+                if (dbSession) {
+                    const quotedMsg = await prisma.message.findFirst({
+                        where: { sessionId: dbSession.id, keyId: quotedMessageId },
+                        select: { keyId: true, remoteJid: true, fromMe: true, content: true, senderJid: true }
+                    });
+                    if (quotedMsg) {
+                        const rawParticipant = quotedMsg.fromMe 
+                            ? instance.socket.user?.id 
+                            : (quotedMsg.senderJid || quotedMsg.remoteJid);
+                        
+                        let cleanParticipant: string | undefined = undefined;
+                        if (rawParticipant) {
+                            const [userPart, domain] = rawParticipant.split('@');
+                            const cleanUser = userPart.split(':')[0];
+                            cleanParticipant = domain ? `${cleanUser}@${domain}` : cleanUser;
+                        }
+
+                        quotedOption = {
+                            key: {
+                                remoteJid: quotedMsg.remoteJid,
+                                fromMe: quotedMsg.fromMe,
+                                id: quotedMsg.keyId,
+                                participant: cleanParticipant
+                            },
+                            message: {
+                                conversation: quotedMsg.content || ""
+                            }
+                        };
+                    }
+                }
+            } catch (e) {
+                console.error("Error fetching quoted message (non-fatal):", e);
+            }
+        }
+
+        const msgPayload = await ChatService.prepararConteudo(messagePayload, mentions);
 
         const options: any = { mentions: mentions || [] };
         if (quotedOption) {

@@ -2,9 +2,12 @@
 // sem filtrar o endereco. Sem este filtro, um payload de mensagem podia ler arquivos do servidor (ex.: .env) ou
 // acessar URLs internas. Roda em todo sock.sendMessage (ver instance.ts): toda URL de midia vira Buffer validado.
 
-const CHAVES_MIDIA = new Set([
+// inclui todas as MEDIA_KEYS do Baileys (o teste midia-segura-chaves confere contra a versao instalada): uma chave
+// fora da lista passava crua, e o Baileys abriria um { url } local (ex.: "biz-cover-photo": { url: "/dev/zero" })
+export const CHAVES_MIDIA = new Set([
     "image", "video", "audio", "sticker", "document", "ptv", "gif", "media",
     "thumbnail", "jpegThumbnail", "productImage",
+    "thumbnail-link", "product-catalog-image", "md-app-state", "md-msg-hist", "biz-cover-photo",
 ]);
 const MAX_PROFUNDIDADE = 12;
 const MAX_DOWNLOADS = 20;

@@ -8,7 +8,7 @@ export const getApiDocs = () => {
             openapi: "3.0.0",
             info: {
                 title: "ZapHub API",
-                version: "2.1.2",
+                version: "2.1.3",
                 description: `
 # WhatsApp AI Gateway - Complete API Reference
 
