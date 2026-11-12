@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { RefreshCw, Save, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
+import { AbrirLinksWhatsApp } from "@/components/dashboard/abrir-links-whatsapp";
 
 export default function SettingsPage() {
     const t = useTranslations("settings");
@@ -224,6 +225,9 @@ export default function SettingsPage() {
                     </Button>
                 </CardContent>
             </Card>
+
+            {/* minha versao: links "clique para conversar" do WhatsApp abrem no ZapHub */}
+            <AbrirLinksWhatsApp />
         </div>
     );
 }

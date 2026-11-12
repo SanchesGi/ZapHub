@@ -53,7 +53,7 @@ export function normalizarNumero(entrada: string): string | null {
     return d;
 }
 
-async function conferirNumero(sessionId: string, numero: string): Promise<string> {
+export async function conferirNumero(sessionId: string, numero: string): Promise<string> {
     const res = await fetch(`/api/chat/${sessionId}/check`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

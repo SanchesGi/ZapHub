@@ -10,6 +10,19 @@ O número da versão segue o padrão `MAIOR.MENOR.CORREÇÃO`: a última parte s
 
 ---
 
+## 2.3.0 — 12/11/2026
+
+### Novidades
+- **Links do WhatsApp abrem no ZapHub:** os links "clique para conversar" (`api.whatsapp.com/send?phone=...&text=...`, `wa.me/...`, `whatsapp://send?...`) mostram o número, a sessão selecionada e o texto, e com o clique em **Abrir conversa** abrem a conversa no ZapHub com o texto pronto no campo. Nada é enviado sozinho. O número do link é internacional, como no WhatsApp, e é conferido antes (resolve o 9º dígito dos números antigos do Brasil).
+  - Links desses dentro das conversas abrem no ZapHub, numa aba nova.
+  - Em **Configurações > Links do WhatsApp**, o botão "Abrir links do WhatsApp no ZapHub" faz o navegador entregar ao ZapHub os links dos botões "Fale conosco pelo WhatsApp" dos sites. O aplicativo instalado também os recebe.
+  - Endereço direto: `/dashboard/abrir?phone=5543999998888&text=Olá`.
+
+### Correções
+- Depois do login, o painel volta para o endereço completo que a pessoa tinha aberto (antes perdia os parâmetros).
+
+---
+
 ## 2.2.0 — 12/11/2026
 
 ### Novidades

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Send, Paperclip, ArrowLeft, FileText, Image as ImageIcon, Music, Video, Download, ArrowDown, CornerUpLeft, Copy, Trash2, Info, X, Sparkles, Sticker, PenLine, Search } from "lucide-react";
 import { EVENTO_ALERTAS, lerAlertas, salvarAlertas, tocarEnviada } from "@/lib/sons";
 import { lerAssinatura, salvarAssinatura } from "@/lib/assinatura";
+import { pegarTextoDoLink } from "@/lib/link-whatsapp";
 import { useSession as useSessaoDoPainel } from "@/components/dashboard/session-provider";
 import { BookUser, UserPlus, MessageCircle, SmilePlus, Plus, Pin, PinOff, RefreshCw, ImageOff, ChevronLeft, Forward } from "lucide-react";
 import { Tiques } from "./chat-list";
@@ -471,6 +472,12 @@ export function ChatWindow({ sessionId, jid, name, onBack, onOpenChat }: ChatWin
     // minha versao: keyIds de mensagens que chegaram agora pelo socket (so elas animam a entrada; abrir a conversa ou carregar antigas nao)
     const novasRef = useRef<Set<string>>(new Set());
     const [input, setInput] = useState("");
+    // minha versao: texto de um link do WhatsApp aberto por /dashboard/abrir (depois do clique em "Abrir conversa");
+    // vai para o campo, sem enviar. Link externo direto para a conversa nao preenche nada.
+    useEffect(() => {
+        const t = pegarTextoDoLink(jid);
+        if (t) setInput(t);
+    }, [jid]);
     const scrollRef = useRef<HTMLDivElement>(null);
     const bottomRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);

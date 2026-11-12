@@ -37,6 +37,8 @@ Algumas opções do menu só aparecem para quem tem permissão.
 
 **Sessão privada**: na lista de sessões, o dono pode usar **Tornar privada**. A sessão passa a ser só dele: nenhum outro usuário a vê, nem outro Super Administrador (no painel, na API, na auditoria, no gerenciador de mídia, no tempo real e nos webhooks de outras pessoas). Ela não pode ser compartilhada (uma sessão compartilhada só vira privada depois de remover as pessoas com acesso) e as mensagens saem sem assinatura. As ferramentas de LGPD continuam alcançando todas as sessões, porque o responsável pelos dados precisa atender os pedidos dos titulares; e quem administra o servidor tem acesso ao banco.
 
+**Links do WhatsApp**: os links "clique para conversar" (`wa.me/...`, `api.whatsapp.com/send?...`) abrem a conversa no ZapHub, com o texto pronto no campo (nada é enviado sozinho). Dentro das conversas isso já funciona; para os botões "Fale conosco pelo WhatsApp" de outros sites, use **Configurações > Links do WhatsApp** uma vez em cada navegador. Também dá para abrir direto: `/dashboard/abrir?phone=5543999998888&text=Olá`.
+
 **Assinatura em negrito** (botão de caneta no campo de mensagem): o cliente vê *Seu Nome* em negrito em cima da mensagem. Vale por sessão: vem ligada nas sessões compartilhadas, desligada nas que só o dono usa e travada nas privadas. Cada pessoa pode ligar ou desligar a sua, separadamente para conversas e grupos.
 
 **Perfil do Bot**: foto, nome e recado do número no WhatsApp.

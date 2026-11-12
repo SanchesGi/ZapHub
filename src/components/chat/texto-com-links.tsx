@@ -7,6 +7,7 @@
 //    (WhatsApp ou envio pelo painel); sem ela, pede ao servidor quando o balao aparece na tela.
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { lerLinkWhatsApp, enderecoParaAbrir } from "@/lib/link-whatsapp";
 
 export type PreviaLink = { url: string; titulo: string | null; descricao: string | null; site: string | null; miniatura: string | null };
 
@@ -44,8 +45,10 @@ export function TextoComLinks({ texto, fromMe }: { texto: string | null | undefi
         const href = hrefSeguro(url);
         if (!href) continue;
         if (inicio > ultimo) partes.push(texto.slice(ultimo, inicio));
+        // minha versao: link "clique para conversar" do WhatsApp abre a conversa aqui no ZapHub
+        const doWhatsApp = lerLinkWhatsApp(href)?.numero ? enderecoParaAbrir(href) : null;
         partes.push(
-            <a key={inicio} href={href} target="_blank" rel="noopener noreferrer nofollow"
+            <a key={inicio} href={doWhatsApp || href} target="_blank" rel="noopener noreferrer nofollow" title={doWhatsApp ? "Abrir esta conversa no ZapHub (nova aba)" : undefined}
                 onClick={(e) => e.stopPropagation()}
                 className={cn("underline underline-offset-2 [overflow-wrap:anywhere]", fromMe ? "text-primary-foreground decoration-primary-foreground/60" : "text-primary decoration-primary/50")}>
                 {url}

@@ -22,7 +22,13 @@ export function limparNomeArquivo(nome: string, max = 150): string {
         const bidi = (k >= 0x202a && k <= 0x202e) || (k >= 0x2066 && k <= 0x2069) || k === 0x200e || k === 0x200f;
         return k >= 32 && k !== 127 && !bidi && !'<>:"|?*'.includes(c);
     }).join("");
-    n = n.trim().replace(/^\.+/, "").replace(/[. ]+$/, "");
+    // sem expressao regular (tempo linear): tira pontos do comeco e pontos/espacos do fim
+    n = n.trim();
+    let i = 0;
+    while (i < n.length && n[i] === ".") i++;
+    let j = n.length;
+    while (j > i && (n[j - 1] === "." || n[j - 1] === " ")) j--;
+    n = n.slice(i, j);
     if (n.length > max) {
         const ext = extensaoDaMidia(n);
         n = n.slice(0, max - ext.length) + ext;

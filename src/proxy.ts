@@ -82,13 +82,13 @@ export async function proxy(request: NextRequest) {
 
         if (!session?.user) {
             const loginUrl = new URL("/auth/login", request.url);
-            loginUrl.searchParams.set("callbackUrl", pathname);
+            loginUrl.searchParams.set("callbackUrl", pathname + request.nextUrl.search); // minha versao: com os parametros (ex.: link do WhatsApp em /dashboard/abrir)
             return NextResponse.redirect(loginUrl);
         }
 
         if (termosPendentes(session)) {
             const aceite = new URL("/aceite", origemReal(request, request.nextUrl));
-            aceite.searchParams.set("callbackUrl", pathname);
+            aceite.searchParams.set("callbackUrl", pathname + request.nextUrl.search); // minha versao: com os parametros (ex.: link do WhatsApp em /dashboard/abrir)
             return NextResponse.redirect(aceite);
         }
 
@@ -117,7 +117,7 @@ export async function proxy(request: NextRequest) {
     const session = await auth();
     if (!session?.user) {
         const loginUrl = new URL("/auth/login", request.url);
-        loginUrl.searchParams.set("callbackUrl", pathname);
+        loginUrl.searchParams.set("callbackUrl", pathname + request.nextUrl.search); // minha versao: com os parametros (ex.: link do WhatsApp em /dashboard/abrir)
         return NextResponse.redirect(loginUrl);
     }
 
