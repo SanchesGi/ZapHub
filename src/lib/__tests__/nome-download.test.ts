@@ -42,3 +42,8 @@ test("extensao so do fim do caminho", () => {
     assert.equal(extensaoDaMidia("/api/media/s-ABC"), "");
     assert.equal(extensaoDaMidia(null), "");
 });
+
+test("caracteres que invertem o texto sao removidos (nome disfarcado)", () => {
+    assert.equal(limparNomeArquivo("fatura\u202Efdp.exe"), "faturafdp.exe");
+    assert.equal(limparNomeArquivo("a\u2066b\u2069c\u200F.pdf"), "abc.pdf");
+});

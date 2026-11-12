@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { authConfig } from "@/auth.config";
 import { estaBloqueado, registrarFalha, registrarFalhaLogin, limparFalhas } from "@/lib/login-rate";
+import { chaveDeBloqueio } from "@/lib/demo";
 import { verificarCodigoUnico } from "@/lib/dois-fatores";
 import { registrarAcesso, ipDeHeaders } from "@/lib/log-acesso";
 
@@ -26,16 +27,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         if (parsedCredentials.success) {
           const { email, password } = parsedCredentials.data;
+          const chave = chaveDeBloqueio(email, ip);
 
           // minha versao: trava anti-forca-bruta (bloqueia o e-mail apos varios erros)
-          if (estaBloqueado(email)) {
+          if (estaBloqueado(chave)) {
             await registrarAcesso({ tipo: "LOGIN_FALHA", usuarioEmail: email, ip, detalhe: "bloqueado (muitas tentativas)" });
             return null;
           }
 
           const user = await prisma.user.findUnique({ where: { email } });
           if (!user) {
-            registrarFalhaLogin(email);
+            registrarFalhaLogin(chave);
             await registrarAcesso({ tipo: "LOGIN_FALHA", usuarioEmail: email, ip, detalhe: "usuario inexistente" });
             return null;
           }
@@ -47,16 +49,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
              if (user.twoFactorEnabled && user.twoFactorSecret) {
                const codigo = String((credentials as any)?.totp || "");
                if (!verificarCodigoUnico(user.id, codigo, user.twoFactorSecret)) {
-                 registrarFalha(email); // codigo errado conta como tentativa
+                 registrarFalha(chave); // codigo errado conta como tentativa
                  await registrarAcesso({ tipo: "LOGIN_2FA_FALHA", usuarioId: user.id, usuarioEmail: email, ip });
                  return null;
                }
              }
-             limparFalhas(email);
+             limparFalhas(chave);
              await registrarAcesso({ tipo: "LOGIN_OK", usuarioId: user.id, usuarioEmail: email, ip, detalhe: user.twoFactorEnabled ? "com 2FA" : null });
              return user;
           }
-          registrarFalhaLogin(email);
+          registrarFalhaLogin(chave);
           await registrarAcesso({ tipo: "LOGIN_FALHA", usuarioId: user.id, usuarioEmail: email, ip, detalhe: "senha incorreta" });
         }
         return null;

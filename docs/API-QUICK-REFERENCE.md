@@ -2,7 +2,7 @@
 
 Quick reference guide for common API operations in ZapHub.
 
-> **ZapHub** 2.1.0 — API base: `https://SEU_SERVIDOR:3443/api`
+> **ZapHub** 2.1.1 — API base: `https://SEU_SERVIDOR:3443/api`
 
 ## Base URL
 
@@ -381,7 +381,7 @@ except Exception as e:
 ---
 
 <div align="center">
-  **ZapHub** 2.1.0
+  **ZapHub** 2.1.1
 </div>
 
 For complete documentation, see [API_DOCUMENTATION.md](./API_DOCUMENTATION.md)

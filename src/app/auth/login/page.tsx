@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState, useEffect, Suspense } from 'react';
+import { useModoDemo } from '@/components/auth/provedor-demo';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -49,6 +50,7 @@ function removerEmailLogin(email: string) {
 }
 
 function LoginForm() {
+  const modoDemo = useModoDemo(); // minha versao: vem do servidor (ZAPHUB_DEMO), nao do build
   const t = useTranslations('auth');
   const tl = useTranslations('lgpd'); // minha versao: avisos de privacidade
   const formSchema = useMemo(() => z.object({
@@ -270,7 +272,7 @@ function LoginForm() {
         </div>
 
         {/* minha versao: modo demonstracao — acesso publico de teste */}
-        {process.env.NEXT_PUBLIC_ZAPHUB_DEMO === "true" && (
+        {modoDemo && (
           <div className="mt-6 rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm">
             <p className="font-semibold text-foreground">Demonstração</p>
             <p className="mt-1 text-muted-foreground">Entre com <span className="font-mono text-foreground">demo@zaphub.demo</span> e a senha <span className="font-mono text-foreground">demo1234</span>. Os dados são fictícios e nada é enviado ao WhatsApp.</p>

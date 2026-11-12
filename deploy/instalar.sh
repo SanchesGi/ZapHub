@@ -95,6 +95,8 @@ npx prisma db push
 ADMIN_EMAIL="${WA_ADMIN_EMAIL:-}"
 ADMIN_SENHA="${WA_ADMIN_PASS:-}"
 ADMIN_NOME="${WA_ADMIN_NAME:-}"
+# a senha nao fica no ambiente do resto da instalacao (npm install/build e scripts de pacotes conseguiriam le-la)
+unset WA_ADMIN_PASS
 if [[ -z "$ADMIN_EMAIL" || -z "$ADMIN_SENHA" ]]; then
   QTD_ADMIN="$(node scripts/setup-admin.js --contar 2>/dev/null || echo "?")"
   if [[ "$QTD_ADMIN" = "0" ]]; then
@@ -122,6 +124,10 @@ if [[ -z "$ADMIN_EMAIL" || -z "$ADMIN_SENHA" ]]; then
       echo "       Crie depois, na pasta do sistema:"
       echo "       read -rsp 'Senha: ' S; echo; ZAPHUB_ADMIN_SENHA=\"\$S\" node scripts/setup-admin.js voce@empresa.com"
     fi
+  elif [[ "$QTD_ADMIN" != [0-9]* ]]; then
+    echo "AVISO: nao consegui conferir se ja existe um Super Administrador (o banco respondeu?)."
+    echo "       Sem ele, o primeiro cadastro em /auth/register vira Super Administrador. Crie a conta agora, na pasta do sistema:"
+    echo "       read -rsp 'Senha: ' S; echo; ZAPHUB_ADMIN_SENHA=\"\$S\" node scripts/setup-admin.js voce@empresa.com"
   fi
 fi
 if [[ -n "$ADMIN_EMAIL" && -n "$ADMIN_SENHA" ]]; then

@@ -8,6 +8,8 @@ Serve para conhecer o painel antes de instalar de verdade, para apresentar o sis
 
 - Nenhum WhatsApp é conectado. As sessões aparecem com o status gravado no banco.
 - Nada é alterado pela API e nada é enviado ao WhatsApp: a tentativa recebe a mensagem "Na demonstração nada é alterado nem enviado ao WhatsApp".
+- Registros de acesso, logs do servidor, manutenção, espaço em disco e exportação de dados ficam fechados, e nenhum registro de acesso é gravado: o que um visitante digita não aparece para o próximo.
+- O bloqueio por senhas erradas na conta de demonstração vale por IP, para um visitante não trancar a demonstração para os outros.
 - O painel mostra uma faixa avisando que é uma demonstração, e a tela de entrada mostra o acesso de teste.
 
 Pessoas, números (com DDD 00, que não existe), empresas, endereços e documentos são inventados.
@@ -26,7 +28,7 @@ npx prisma db push
 npx tsx scripts/demo/popular-demo.ts
 
 # 3) o sistema em modo demonstração
-export ZAPHUB_DEMO=true NEXT_PUBLIC_ZAPHUB_DEMO=true
+export ZAPHUB_DEMO=true
 npm run build && npm start
 ```
 
@@ -38,8 +40,7 @@ As mídias da demonstração (cardápios e uma nota fiscal de exemplo) ficam em 
 
 | Variável | Para quê |
 | :--- | :--- |
-| `ZAPHUB_DEMO=true` | Liga o modo demonstração no servidor (não conecta WhatsApp, recusa alterações e envios). |
-| `NEXT_PUBLIC_ZAPHUB_DEMO=true` | Mostra o acesso de teste na tela de entrada. Entra no build. |
+| `ZAPHUB_DEMO=true` | Liga o modo demonstração no servidor: não conecta WhatsApp, recusa alterações e envios, não guarda registros de acesso e mostra o acesso de teste na tela de entrada. |
 | `ZAPHUB_DEMO_AVISO=false` | Esconde a faixa de demonstração do painel (útil para capturas de tela). |
 | `DEMO_PASTA_MIDIA` | Pasta das mídias fictícias (padrão `data/demo-midia`). |
 

@@ -2,6 +2,7 @@
 // Nunca pode derrubar a acao principal (tudo em try/catch).
 import { prisma } from "@/lib/prisma";
 import { ipDoCliente } from "@/lib/ip-cliente";
+import { MODO_DEMO } from "@/lib/demo";
 
 export type TipoLogAcesso =
   | "LOGIN_OK" | "LOGIN_FALHA" | "LOGIN_2FA_FALHA" | "LOGOUT"
@@ -19,6 +20,7 @@ export async function registrarAcesso(dados: {
   ip?: string | null;
   detalhe?: string | null;
 }) {
+  if (MODO_DEMO) return; // minha versao: demonstracao publica nao guarda IP nem e-mail digitado por visitantes
   try {
     await prisma.logAcesso.create({
       data: {

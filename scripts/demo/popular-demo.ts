@@ -75,6 +75,7 @@ async function main() {
 
     // limpa tudo (ordem por dependencia; Session apaga em cascata o que e dela)
     await prisma.chatLabel.deleteMany(); await prisma.label.deleteMany();
+    await prisma.logAcesso.deleteMany(); // registros de acesso nao sobrevivem a restauracao
     await prisma.broadcastRecipient.deleteMany(); await prisma.broadcastLog.deleteMany();
     await prisma.chatLeitura.deleteMany(); await prisma.chatEstado.deleteMany();
     await prisma.message.deleteMany(); await prisma.contact.deleteMany();

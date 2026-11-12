@@ -37,7 +37,7 @@ export async function getAutoReplies(sessionId: string) {
 
 // Create a new auto reply directly to DB
 export async function createAutoReply(sessionId: string, data: { keyword: string; response?: string; matchType: string; isMedia: boolean; mediaUrl?: string | null; mediaType?: string | null; triggerType: string }) {
-    if (MODO_DEMO) throw new Error(MENSAGEM_DEMO); // minha versao: demonstracao nao altera nada
+    if (MODO_DEMO) return { success: false as const, error: MENSAGEM_DEMO }; // minha versao: demonstracao nao altera nada
     const nextAuthSession = await getAuthenticatedUserForAction();
     if (!nextAuthSession) {
         throw new Error("Unauthorized");
@@ -81,7 +81,7 @@ export async function createAutoReply(sessionId: string, data: { keyword: string
 }
 
 export async function deleteAutoReply(sessionId: string, ruleId: string) {
-    if (MODO_DEMO) throw new Error(MENSAGEM_DEMO); // minha versao: demonstracao nao altera nada
+    if (MODO_DEMO) return { success: false as const, error: MENSAGEM_DEMO }; // minha versao: demonstracao nao altera nada
     const nextAuthSession = await getAuthenticatedUserForAction();
     if (!nextAuthSession) {
         throw new Error("Unauthorized");
@@ -106,7 +106,7 @@ export async function deleteAutoReply(sessionId: string, ruleId: string) {
 }
 
 export async function updateAutoReply(sessionId: string, ruleId: string, data: { keyword: string; response?: string; matchType: string; isMedia: boolean; mediaUrl?: string | null; mediaType?: string | null; triggerType: string }) {
-    if (MODO_DEMO) throw new Error(MENSAGEM_DEMO); // minha versao: demonstracao nao altera nada
+    if (MODO_DEMO) return { success: false as const, error: MENSAGEM_DEMO }; // minha versao: demonstracao nao altera nada
     const nextAuthSession = await getAuthenticatedUserForAction();
     if (!nextAuthSession) {
         throw new Error("Unauthorized");

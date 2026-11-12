@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { estaBloqueado, registrarFalhaPrecheck } from "@/lib/login-rate";
+import { chaveDeBloqueio } from "@/lib/demo";
 import { registrarAcesso, ipDeHeaders } from "@/lib/log-acesso";
 import { limitarTaxa, ipDoRequest, resposta429 } from "@/lib/rate-limit";
 
@@ -20,20 +21,21 @@ export async function POST(req: NextRequest) {
   if (!p.success) return NextResponse.json({ needs2fa: false });
 
   const { email, password } = p.data;
-  if (estaBloqueado(email)) return NextResponse.json({ bloqueado: true, needs2fa: false });
+  const ip = ipDeHeaders(req.headers);
+  const chave = chaveDeBloqueio(email, ip);
+  if (estaBloqueado(chave)) return NextResponse.json({ bloqueado: true, needs2fa: false });
 
   const user = await prisma.user.findUnique({ where: { email }, select: { id: true, password: true, twoFactorEnabled: true } });
-  const ip = ipDeHeaders(req.headers);
   // minha versao: palpite errado aqui conta no MESMO bloqueio do login e entra no log de acesso
   if (!user) {
-    registrarFalhaPrecheck(email);
+    registrarFalhaPrecheck(chave);
     await registrarAcesso({ tipo: "LOGIN_FALHA", usuarioEmail: email, ip, detalhe: "usuario inexistente (precheck)" });
     return NextResponse.json({ needs2fa: false }); // nao revela que o e-mail nao existe
   }
 
   const ok = await bcrypt.compare(password, user.password);
   if (!ok) {
-    registrarFalhaPrecheck(email);
+    registrarFalhaPrecheck(chave);
     await registrarAcesso({ tipo: "LOGIN_FALHA", usuarioId: user.id, usuarioEmail: email, ip, detalhe: "senha incorreta (precheck)" });
     return NextResponse.json({ needs2fa: false }); // senha errada: nao revela status de 2FA
   }

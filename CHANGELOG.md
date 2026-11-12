@@ -10,6 +10,21 @@ O número da versão segue o padrão `MAIOR.MENOR.CORREÇÃO`: a última parte s
 
 ---
 
+## 2.1.1 — 12/11/2026
+
+Correções de uma revisão de segurança das versões 2.0.1 e 2.1.0.
+
+### Segurança
+- **Modo demonstração:** não guarda registros de acesso (IP e e-mail digitados por visitantes); registros de acesso, logs do servidor, manutenção, espaço em disco e exportação de dados ficam fechados também para leitura; o bloqueio por senhas erradas na conta de demonstração vale por IP. O acesso de teste na tela de entrada passa a depender do servidor estar mesmo em modo demonstração (antes dependia de uma variável do build).
+- **Mensagem de voz:** o servidor confere pelos primeiros bytes se a gravação é webm, ogg ou mp4 e informa o formato ao ffmpeg, que deixa de aceitar listas de reprodução capazes de ler outros arquivos ou endereços. Cada conversão usa uma pasta temporária própria.
+- **Downloads:** o nome do arquivo perde os caracteres que invertem o texto (usados para disfarçar, por exemplo, um `.exe` como `.pdf`).
+- **Instalação:** a senha do administrador passada por variável não fica no ambiente do resto da instalação; se não der para conferir se já existe um Super Administrador, o instalador avisa como criar a conta.
+
+### Correções
+- Respostas automáticas na demonstração mostram o motivo da recusa (antes aparecia um erro genérico).
+
+---
+
 ## 2.1.0 — 11/11/2026
 
 ### Novidades

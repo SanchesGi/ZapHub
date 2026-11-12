@@ -32,6 +32,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getAutoReplies, createAutoReply, deleteAutoReply, updateAutoReply } from "./actions";
+import { exigirSucesso } from "@/lib/resultado-acao";
 import { SessionGuard } from "@/components/dashboard/session-guard";
 import { useTranslations } from "next-intl";
 
@@ -106,7 +107,7 @@ export default function AutoReplyPage() {
         setSubmitting(true);
         try {
             // Using direct Server Action instead of API route
-            await createAutoReply(sessionId, {
+            exigirSucesso(await createAutoReply(sessionId, {
                 keyword: keyword.trim(),
                 response: response.trim(),
                 matchType,
@@ -114,7 +115,7 @@ export default function AutoReplyPage() {
                 isMedia: !!mediaUrl.trim(),
                 mediaUrl: mediaUrl.trim() || null,
                 mediaType: mediaType || null
-            });
+            }));
 
             toast.success(tCommon("saved"));
             setIsCreateOpen(false);
@@ -132,7 +133,7 @@ export default function AutoReplyPage() {
         if (!sessionId) return;
         try {
             // Using direct Server Action
-            await deleteAutoReply(sessionId, ruleId);
+            exigirSucesso(await deleteAutoReply(sessionId, ruleId));
             toast.success(tCommon("deleted"));
             fetchRules();
         } catch (error: any) {
@@ -170,7 +171,7 @@ export default function AutoReplyPage() {
 
         setSubmitting(true);
         try {
-            await updateAutoReply(sessionId, editId, {
+            exigirSucesso(await updateAutoReply(sessionId, editId, {
                 keyword: editKeyword.trim(),
                 response: editResponse.trim(),
                 matchType: editMatchType,
@@ -178,7 +179,7 @@ export default function AutoReplyPage() {
                 isMedia: !!editMediaUrl.trim(),
                 mediaUrl: editMediaUrl.trim() || null,
                 mediaType: editMediaType || null
-            });
+            }));
 
             toast.success(t("updatedSuccess"));
             setIsEditOpen(false);

@@ -17,7 +17,11 @@ export function extensaoDaMidia(mediaUrl?: string | null): string {
 /** tira pasta, caracteres proibidos no Windows/Linux e de controle; corta o tamanho mantendo a extensao */
 export function limparNomeArquivo(nome: string, max = 150): string {
     let n = nome.split(/[\\/]/).pop() || "";
-    n = Array.from(n).filter((c) => c.charCodeAt(0) >= 32 && c.charCodeAt(0) !== 127 && !'<>:"|?*'.includes(c)).join("");
+    n = Array.from(n).filter((c) => {
+        const k = c.charCodeAt(0);
+        const bidi = (k >= 0x202a && k <= 0x202e) || (k >= 0x2066 && k <= 0x2069) || k === 0x200e || k === 0x200f;
+        return k >= 32 && k !== 127 && !bidi && !'<>:"|?*'.includes(c);
+    }).join("");
     n = n.trim().replace(/^\.+/, "").replace(/[. ]+$/, "");
     if (n.length > max) {
         const ext = extensaoDaMidia(n);

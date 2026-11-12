@@ -9,10 +9,9 @@
 // - execFile com lista de argumentos e timeout (nunca exec com string) — padrao da nota de seguranca.
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
-import { writeFile, readFile, unlink, mkdir } from "node:fs/promises";
+import { writeFile, readFile, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import crypto from "node:crypto";
 import { logger } from "./logger";
 
 const BITRATE = process.env.VOICE_OPUS_BITRATE || "48k"; // voz mono: 48k soa bem e o Android aceita
@@ -73,18 +72,31 @@ function duracaoDoLog(stderr: string): number | undefined {
     return Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3]);
 }
 
+/**
+ * formato da gravacao pelos primeiros bytes (o navegador grava webm, ogg ou mp4). O ffmpeg recebe o formato
+ * explicito: sem isso ele aceita qualquer coisa que pareca midia, inclusive listas (HLS/concat) que o fariam ler
+ * outros arquivos do servidor ou enderecos da rede.
+ */
+export function formatoDaGravacao(b: Buffer): "matroska" | "ogg" | "mp4" | null {
+    if (b.length >= 4 && b.readUInt32BE(0) === 0x1a45dfa3) return "matroska"; // webm/mkv (EBML)
+    if (b.length >= 4 && b.toString("latin1", 0, 4) === "OggS") return "ogg";
+    if (b.length >= 8 && b.toString("latin1", 4, 8) === "ftyp") return "mp4";
+    return null;
+}
+
 export async function paraVozOpus(entrada: Buffer): Promise<{ buffer: Buffer; seconds?: number; waveform?: Uint8Array }> {
-    const dir = path.join(tmpdir(), "wa-voz");
-    await mkdir(dir, { recursive: true });
-    const id = crypto.randomBytes(8).toString("hex");
-    const inPath = path.join(dir, `in_${id}`);
-    const outPath = path.join(dir, `out_${id}.ogg`);
+    const formato = formatoDaGravacao(entrada);
+    if (!formato) throw new Error("Gravação em formato não reconhecido (use webm, ogg ou mp4).");
+    // pasta propria por conversao (o /tmp e compartilhado com outros usuarios do servidor)
+    const dir = await mkdtemp(path.join(tmpdir(), "zaphub-voz-"));
+    const inPath = path.join(dir, "entrada");
+    const outPath = path.join(dir, "saida.ogg");
 
     try {
         await writeFile(inPath, entrada);
         const filtro = DENOISE ? "highpass=f=80,afftdn=nf=-20" : "highpass=f=80";
         const { stderr } = await ffmpeg([
-            "-y", "-i", inPath,
+            "-y", "-f", formato, "-i", inPath,
             "-vn", "-map_metadata", "-1",
             "-ac", "1", "-ar", "48000",
             "-af", filtro,
@@ -105,7 +117,6 @@ export async function paraVozOpus(entrada: Buffer): Promise<{ buffer: Buffer; se
         logger.error("Voz", `Falha ao converter audio de voz: ${e?.message || e}`);
         throw new Error("Não consegui preparar o áudio (ffmpeg). Confira se o ffmpeg está instalado na VM.");
     } finally {
-        unlink(inPath).catch(() => {});
-        unlink(outPath).catch(() => {});
+        rm(dir, { recursive: true, force: true }).catch(() => {});
     }
 }

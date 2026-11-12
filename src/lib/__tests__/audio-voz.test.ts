@@ -29,3 +29,13 @@ test("amostras negativas contam pelo volume (valor absoluto)", () => {
     const onda = ondaDoPcm(pcm(new Array(64 * 10).fill(-16000)));
     assert.ok(onda.every((v) => v === 100));
 });
+
+test("formato da gravacao pelos primeiros bytes; lista HLS ou texto e recusado", async () => {
+    const { formatoDaGravacao } = await import("../audio-voz");
+    assert.equal(formatoDaGravacao(Buffer.from([0x1a, 0x45, 0xdf, 0xa3, 0, 0])), "matroska");
+    assert.equal(formatoDaGravacao(Buffer.from("OggS\0\x02rest", "latin1")), "ogg");
+    assert.equal(formatoDaGravacao(Buffer.concat([Buffer.from([0, 0, 0, 0x18]), Buffer.from("ftypmp42")])), "mp4");
+    assert.equal(formatoDaGravacao(Buffer.from("#EXTM3U\n#EXT-X-VERSION:3\nhttp://169.254.169.254/\n")), null);
+    assert.equal(formatoDaGravacao(Buffer.from("ffconcat version 1.0\nfile '/etc/passwd'\n")), null);
+    assert.equal(formatoDaGravacao(Buffer.alloc(0)), null);
+});

@@ -55,8 +55,9 @@ server.log
 /certificados/*
 !/certificados/.gitkeep
 # certificado publico + instalador gerados com o IP da maquina (recriados em cada servidor)
-/public/certificado-zaphub.crt
-/public/instalar-certificado-zaphub.bat
+/public/certificado-*.crt
+/public/instalar-certificado-*.bat
+/instalar-certificado-*.bat
 # arquivos de execucao (log/estado do servico)
 logs-prod.txt
 logs-prod.anterior.txt

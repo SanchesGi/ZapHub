@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="LICENSE"><img alt="Licença AGPL-3.0" src="https://img.shields.io/badge/licen%C3%A7a-AGPL--3.0-f4a935"></a>
-  <a href="CHANGELOG.md"><img alt="Versão" src="https://img.shields.io/badge/vers%C3%A3o-2.1.0-f4a935"></a>
+  <a href="CHANGELOG.md"><img alt="Versão" src="https://img.shields.io/badge/vers%C3%A3o-2.1.1-f4a935"></a>
   <img alt="Next.js 16" src="https://img.shields.io/badge/Next.js-16-111">
   <img alt="MariaDB" src="https://img.shields.io/badge/MariaDB-MySQL-111">
 </p>
