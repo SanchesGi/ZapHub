@@ -9,6 +9,7 @@ import { waManager } from "@/modules/whatsapp/manager";
 import { sincronizaEstadoChat } from "@/modules/whatsapp/store/estado-chat";
 import { lidaAte } from "@/lib/leitura";
 import { previaParaEnvio } from "@/lib/previa-link";
+import { buscarSessao } from "@/lib/session-access";
 
 const CHAT_PAGE_SIZE = parseInt(process.env.NEXT_PUBLIC_CHAT_PAGE_SIZE || "50", 10);
 
@@ -117,6 +118,8 @@ export async function sendChatMessage(sessionId: string, jid: string, text: stri
     try {
         // minha versao: "Assinar" -> o cliente tambem ve quem respondeu: "*Nome*" (negrito) e a mensagem na linha de baixo
         const nome = (user.name || user.email || "").trim();
+        // sessao privada nao assina (so o dono usa; nao ha cliente para saber "quem respondeu")
+        if (assinar && (await buscarSessao(sessionId, { privada: true }))?.privada) assinar = false;
         if (assinar && nome) text = `*${nome}*\n${text}`;
         // minha versao: previa do primeiro link (quem recebe tambem ve). No maximo 4 s; sem previa, envia assim mesmo
         const payload: any = { text };

@@ -90,6 +90,22 @@ export async function PATCH(
             }
         });
 
+        // minha versao: senha ou e-mail de OUTRA pessoa mudados por quem administra: fica no registro de acesso e
+        // a pessoa recebe um aviso no painel (assim ninguem entra na conta de outro, nem numa sessao privada, sem rastro)
+        if (id !== user.id && (password || (email && antes && antes.email !== email))) {
+            const ip = ipDeHeaders(request.headers);
+            if (password) await registrarAcesso({ tipo: "SENHA_REDEFINIDA", usuarioId: user.id, usuarioEmail: user.email, alvo: antes?.email || id, ip });
+            if (email && antes && antes.email !== email) await registrarAcesso({ tipo: "EMAIL_ALTERADO", usuarioId: user.id, usuarioEmail: user.email, alvo: antes.email, ip, detalhe: `-> ${email}` });
+            await prisma.notification.create({
+                data: {
+                    userId: id,
+                    title: password ? "Sua senha foi redefinida" : "Seu e-mail de acesso foi alterado",
+                    message: `${user.name || user.email} ${password ? "redefiniu a sua senha" : "alterou o seu e-mail de acesso"}. Se você não pediu isso, fale com o responsável pelo sistema.`,
+                    type: "SYSTEM",
+                },
+            }).catch(() => null);
+        }
+
         if (updateData.role && antes && antes.role !== updateData.role) {
             await registrarAcesso({ tipo: "PAPEL_ALTERADO", usuarioId: user.id, usuarioEmail: user.email, alvo: antes.email, ip: ipDeHeaders(request.headers), detalhe: `${antes.role} -> ${updateData.role}` });
         }

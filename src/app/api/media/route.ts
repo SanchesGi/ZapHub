@@ -7,6 +7,7 @@ import { autorizarMidia } from "@/lib/autorizar-midia";
 import { prisma } from "@/lib/prisma";
 import { pastasDeLeitura, localizarMidia, nomeDeMidiaValido, nomeDoMediaUrl } from "@/lib/pasta-midia";
 import { nomeParaDownload } from "@/lib/nome-download";
+import { filtroSessoesVisiveisAoAdmin } from "@/lib/session-access";
 
 /**
  * GET /api/media — List media files with full hierarchy: User > Session > Sender
@@ -35,6 +36,7 @@ export async function GET(request: NextRequest) {
         // Get sessions with owner info
         const sessions = isSuperAdmin
             ? await prisma.session.findMany({
+                where: filtroSessoesVisiveisAoAdmin(user.id), // minha versao: sem as sessoes privadas de outros donos
                 include: { user: { select: { id: true, name: true, email: true } } },
                 orderBy: { createdAt: "desc" },
             })
@@ -56,10 +58,24 @@ export async function GET(request: NextRequest) {
             const n = nomeDoMediaUrl(m.mediaUrl);
             if (n && pastaDe.has(n)) mensagemDoArquivo.set(n, m);
         }
+        // minha versao: arquivos de sessoes privadas de outros donos nao entram nem como "sem dono"
+        const nomesPrivados = new Set<string>();
+        if (isSuperAdmin) {
+            const privadas = await prisma.session.findMany({ where: { privada: true, NOT: { userId: user.id } }, select: { id: true } });
+            if (privadas.length) {
+                const dela = await prisma.message.findMany({ where: { sessionId: { in: privadas.map((p) => p.id) }, mediaUrl: { not: null } }, select: { mediaUrl: true } });
+                for (const m of dela) { const n = nomeDoMediaUrl(m.mediaUrl); if (n) nomesPrivados.add(n); }
+            }
+        }
+        // e os orfaos (mensagem apagada) cujo nome comeca pelo id de uma sessao privada de outro dono
+        const prefixosPrivados = isSuperAdmin
+            ? (await prisma.session.findMany({ where: { privada: true, NOT: { userId: user.id } }, select: { sessionId: true } })).map((p) => `${p.sessionId}-`)
+            : [];
         const ownedFiles: { name: string; msg: (typeof mensagens)[number] | null }[] = [];
         for (const name of pastaDe.keys()) {
             const msg = mensagemDoArquivo.get(name) || null;
-            if (msg || isSuperAdmin) ownedFiles.push({ name, msg });
+            const privadoDeOutro = nomesPrivados.has(name) || prefixosPrivados.some((p) => name.startsWith(p));
+            if (msg || (isSuperAdmin && !privadoDeOutro)) ownedFiles.push({ name, msg });
         }
 
         // Build response

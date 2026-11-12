@@ -20,7 +20,9 @@ import { CorretorTexto } from "@/components/ui/corretor-texto";
 import { cn } from "@/lib/utils";
 import { sendChatMessage } from "@/app/dashboard/chat/actions";
 import { exigirSucesso } from "@/lib/resultado-acao";
-import { lerAlertas, tocarEnviada } from "@/lib/sons";
+import { tocarEnviada } from "@/lib/sons";
+import { lerAssinatura } from "@/lib/assinatura";
+import { useSession as useSessaoDoPainel } from "@/components/dashboard/session-provider";
 import { urlDoJid } from "@/lib/jid-url";
 import { formatarTelefone } from "./chat-info-panel";
 
@@ -169,10 +171,11 @@ export function NovaConversaDialog({ sessionId, open, onOpenChange, onAbrir, mod
         return () => { ativo = false; clearTimeout(t); };
     }, [open, aba, sessionId, busca, todos]);
 
+    const { sessions: sessoesDoPainel } = useSessaoDoPainel();
     const nomeDe = (c: ContatoAgenda) => c.name || c.notify || c.verifiedName || formatarTelefone(c.jid.split("@")[0]) || "Contato";
 
     const enviarTexto = async (jid: string, texto: string) => {
-        const assinar = !!lerAlertas().assinar; // conversa privada
+        const assinar = lerAssinatura(sessionId, false, sessoesDoPainel.find((s) => s.sessionId === sessionId)); // conversa privada
         exigirSucesso(await sendChatMessage(sessionId, jid, texto, undefined, undefined, assinar));
         tocarEnviada();
     };

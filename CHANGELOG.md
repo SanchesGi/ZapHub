@@ -10,6 +10,19 @@ O número da versão segue o padrão `MAIOR.MENOR.CORREÇÃO`: a última parte s
 
 ---
 
+## 2.2.0 — 12/11/2026
+
+### Novidades
+- **Sessão privada:** na lista de sessões, o dono pode usar **Tornar privada**. A sessão passa a ser só dele: nenhum outro usuário a vê, nem outro Super Administrador, no painel, na API, na auditoria, no gerenciador de mídia, no tempo real e nos webhooks de outras pessoas. Ela não pode ser compartilhada e as mensagens saem sem assinatura. As ferramentas de LGPD continuam alcançando todas as sessões.
+- **Assinatura em negrito por sessão:** vem ligada nas sessões compartilhadas (para todos os usuários), desligada nas que só o dono usa e travada nas privadas. Cada pessoa pode ligar ou desligar a sua.
+
+### Segurança
+- **Auditoria do Supervisor:** mostra só as sessões a que ele tem acesso. Antes mostrava também as sessões pessoais da equipe e o que a equipe apagou em qualquer sessão, inclusive o conteúdo das mensagens apagadas.
+- **Senha ou e-mail de outra pessoa** alterados por quem administra ficam no registro de acesso, e a pessoa recebe um aviso no painel.
+- **Respostas automáticas pelo painel:** criar e editar exige poder gerenciar a sessão (antes bastava ter acesso) e a URL da mídia passa pelo mesmo filtro da API.
+
+---
+
 ## 2.1.3 — 12/11/2026
 
 ### Segurança

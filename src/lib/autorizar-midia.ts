@@ -39,10 +39,21 @@ export async function sessoesDaMidia(nome: string): Promise<string[]> {
  * Decide pelo registro no banco. Sem mensagem dona (arquivo orfao): so SUPERADMIN.
  * Se mais de uma sessao aponta para o mesmo nome (colisao), exige acesso a TODAS.
  */
+/**
+ * minha versao: arquivo sem mensagem dona (ex.: mensagem apagada) cujo nome comeca pelo id de uma sessao PRIVADA
+ * de outro dono. Nao aparece para o Super Administrador nem como "sem dono".
+ */
+export async function ehOrfaDePrivadaDeOutro(nome: string, userId: string): Promise<boolean> {
+    const div = divisoesDoNome(nome);
+    if (!div.length) return false;
+    const n = await prisma.session.count({ where: { sessionId: { in: [...new Set(div.map((d) => d.sessao))] }, privada: true, NOT: { userId } } });
+    return n > 0;
+}
+
 export async function autorizarMidia(user: Usuario, nome: string, acao: "ver" | "apagar"): Promise<boolean> {
     if (!nomeDeMidiaValido(nome)) return false;
     const ids = await sessoesDaMidia(nome);
-    if (!ids.length) return user.role === "SUPERADMIN";
+    if (!ids.length) return user.role === "SUPERADMIN" && !(await ehOrfaDePrivadaDeOutro(nome, user.id));
     const pode = acao === "ver" ? canAccessSessionById : podeGerenciarSessaoPorId;
     for (const id of ids) if (!(await pode(user.id, user.role, id))) return false;
     return true;

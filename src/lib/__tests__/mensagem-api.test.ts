@@ -19,7 +19,7 @@ test("midia por URL http(s) com legenda e aceita", () => {
 });
 
 test("arquivo local, outros esquemas e tipos desconhecidos sao recusados", () => {
-    assert.equal(ok({ image: { url: "file:///home/akg/zaphub/.env" } }), false, "file://");
+    assert.equal(ok({ image: { url: "file:///srv/zaphub/.env" } }), false, "file://");
     assert.equal(ok({ document: { url: "/etc/passwd" } }), false, "caminho local");
     assert.equal(ok({ video: { url: "ftp://exemplo.com/v.mp4" } }), false, "ftp");
     assert.equal(ok({ ptv: { url: "https://exemplo.com/v.mp4" } }), false, "tipo fora da lista");

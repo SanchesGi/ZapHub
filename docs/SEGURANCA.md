@@ -33,6 +33,8 @@ Antes da publicação, o projeto passou por uma auditoria de segurança por leit
   - trocar o 2FA exige a senha (e o código atual, se já estiver ligado), e o fator antigo só é substituído depois que o novo é confirmado;
   - um código TOTP não é aceito duas vezes.
 - **Papéis** (Super Administrador, Supervisor, Equipe) e **acesso por sessão de WhatsApp**: cada rota confere se o usuário pode ver (`canAccessSession`) ou gerenciar (`podeGerenciarSessao`) aquela sessão (`src/lib/session-access.ts`).
+- **Sessão privada**: o dono pode deixar uma sessão só para ele. Nem outro Super Administrador a alcança pelo painel, pela API, pela auditoria, pelo gerenciador de mídia, pelo tempo real ou pelos webhooks dele; ela não pode ser compartilhada. Só as ferramentas de LGPD alcançam todas as sessões.
+- **Senha ou e-mail trocados por quem administra** ficam no registro de acesso e a pessoa recebe um aviso no painel.
 - **Cadastro público desligado** por padrão; contas criadas pelo administrador.
 - **Trocar a própria senha** exige a senha atual.
 - **Registro de acesso** (logins, falhas, 2FA, criação e remoção de usuários, troca de papel e senha, aceite de termos, manutenção) com data e IP, na tela Segurança.

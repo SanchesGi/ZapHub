@@ -90,10 +90,14 @@ export async function POST(
         const { email } = parseResult.data;
 
         // Resolve session
-        const dbSession = await buscarSessao(sessionId, { id: true, userId: true, name: true });
+        const dbSession = await buscarSessao(sessionId, { id: true, userId: true, name: true, privada: true });
 
         if (!dbSession) {
             return NextResponse.json({ status: false, message: "Session not found" }, { status: 404 });
+        }
+        // minha versao: sessao privada nao e compartilhada (o dono tira a marcacao antes, se quiser)
+        if (dbSession.privada) {
+            return NextResponse.json({ status: false, message: "Esta sessão é privada. Desmarque \"Sessão privada\" antes de compartilhá-la." }, { status: 400 });
         }
 
         // Find target user

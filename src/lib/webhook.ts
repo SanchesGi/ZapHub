@@ -43,7 +43,7 @@ export async function dispatchWebhook(
         // Get the session to find the userId
         const session = await prisma.session.findUnique({
             where: { sessionId },
-            select: { id: true, userId: true }
+            select: { id: true, userId: true, privada: true }
         });
 
         if (!session) {
@@ -62,8 +62,10 @@ export async function dispatchWebhook(
             select: { id: true }
         });
         
-        const userIds = [
-            session.userId, 
+        // minha versao: sessao PRIVADA so dispara os webhooks do proprio dono (nem os globais de outro Super
+        // Administrador, nem um da sessao criado por outra pessoa antes de ela virar privada)
+        const userIds = session.privada ? [session.userId] : [
+            session.userId,
             ...accesses.map(a => a.userId),
             ...superadmins.map(s => s.id)
         ];
@@ -73,7 +75,7 @@ export async function dispatchWebhook(
                 isActive: true,
                 OR: [
                     { sessionId: null, userId: { in: userIds } }, // Global webhooks
-                    { sessionId: session.id } // Session-specific webhooks
+                    session.privada ? { sessionId: session.id, userId: session.userId } : { sessionId: session.id } // Session-specific webhooks
                 ]
             }
         });

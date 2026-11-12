@@ -16,6 +16,18 @@ export async function tirarDaSessao(userId: string, sessionKey: string) {
     }
 }
 
+/** minha versao: sessao virou privada -> todos que nao sao o dono saem das salas dela na hora */
+export async function deixarSoODono(donoId: string, sessionKey: string) {
+    const servidor = io();
+    if (!servidor) return;
+    const sockets = await servidor.in(sessionKey).fetchSockets();
+    for (const s of sockets) {
+        if (s.data?.user?.id === donoId) continue;
+        s.leave(sessionKey);
+        s.leave(salaGestao(sessionKey));
+    }
+}
+
 /** Derruba todos os sockets do usuario (removido, trocou de papel ou teve a senha alterada). */
 export async function desconectarUsuario(userId: string) {
     const servidor = io();

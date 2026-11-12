@@ -10,6 +10,9 @@ interface Session {
     sessionId: string;
     name: string;
     status: string;
+    userId?: string;
+    privada?: boolean; // minha versao: sessao privada (so o dono)
+    _count?: { sessionAccesses?: number }; // quantas pessoas tem acesso compartilhado
 }
 
 interface SessionContextType {

@@ -67,6 +67,7 @@ model Session {
   name        String    // e.g. "Marketing WA"
   sessionId   String    @unique // The unique ID used for Baileys auth
   status      String    @default("DISCONNECTED") // CONNECTED, DISCONNECTED, ZOMBIE
+  privada     Boolean   @default(false) // minha versao: so o dono ve e usa (nem outro Super Administrador); nao pode ser compartilhada
   qr          String?   @db.Text
   config      Json?     // Store instance specific config (e.g. "read_receipts": true)
   createdAt   DateTime  @default(now())

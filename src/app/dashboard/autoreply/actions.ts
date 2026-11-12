@@ -1,10 +1,18 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { canAccessSession } from "@/lib/api-auth";
+import { podeGerenciarSessao } from "@/lib/api-auth";
 import { getAuthenticatedUserForAction } from "@/lib/server-action-auth";
 import { Prisma } from "@prisma/client";
 import { MODO_DEMO, MENSAGEM_DEMO } from "@/lib/demo";
+
+// minha versao: mesma regra da API (/api/autoreplies): midia so por URL segura (nada de arquivo local ou rede interna)
+async function exigirMidiaSegura(mediaUrl?: string | null) {
+    if (!mediaUrl) return;
+    const { validateSafeUrl } = await import("@/lib/security");
+    const v = await validateSafeUrl(mediaUrl);
+    if (!v.valid) throw new Error(`URL da mídia recusada: ${v.error}`);
+}
 
 // Fetch rules directly from DB without API call
 export async function getAutoReplies(sessionId: string) {
@@ -13,7 +21,7 @@ export async function getAutoReplies(sessionId: string) {
         throw new Error("Unauthorized");
     }
 
-    const canAccess = await canAccessSession(nextAuthSession.id, nextAuthSession.role, sessionId);
+    const canAccess = await podeGerenciarSessao(nextAuthSession.id, nextAuthSession.role, sessionId);
     if (!canAccess) {
         throw new Error("Forbidden");
     }
@@ -38,6 +46,7 @@ export async function getAutoReplies(sessionId: string) {
 // Create a new auto reply directly to DB
 export async function createAutoReply(sessionId: string, data: { keyword: string; response?: string; matchType: string; isMedia: boolean; mediaUrl?: string | null; mediaType?: string | null; triggerType: string }) {
     if (MODO_DEMO) return { success: false as const, error: MENSAGEM_DEMO }; // minha versao: demonstracao nao altera nada
+    await exigirMidiaSegura(data.mediaUrl);
     const nextAuthSession = await getAuthenticatedUserForAction();
     if (!nextAuthSession) {
         throw new Error("Unauthorized");
@@ -47,7 +56,7 @@ export async function createAutoReply(sessionId: string, data: { keyword: string
         throw new Error("Keyword and either response or media are required");
     }
 
-    const canAccess = await canAccessSession(nextAuthSession.id, nextAuthSession.role, sessionId);
+    const canAccess = await podeGerenciarSessao(nextAuthSession.id, nextAuthSession.role, sessionId);
     if (!canAccess) {
         throw new Error("Forbidden");
     }
@@ -96,7 +105,7 @@ export async function deleteAutoReply(sessionId: string, ruleId: string) {
         throw new Error("Rule not found");
     }
 
-    const canAccess = await canAccessSession(nextAuthSession.id, nextAuthSession.role, rule.session.sessionId);
+    const canAccess = await podeGerenciarSessao(nextAuthSession.id, nextAuthSession.role, rule.session.sessionId);
     if (!canAccess || rule.session.sessionId !== sessionId) {
         throw new Error("Forbidden");
     }
@@ -107,6 +116,7 @@ export async function deleteAutoReply(sessionId: string, ruleId: string) {
 
 export async function updateAutoReply(sessionId: string, ruleId: string, data: { keyword: string; response?: string; matchType: string; isMedia: boolean; mediaUrl?: string | null; mediaType?: string | null; triggerType: string }) {
     if (MODO_DEMO) return { success: false as const, error: MENSAGEM_DEMO }; // minha versao: demonstracao nao altera nada
+    await exigirMidiaSegura(data.mediaUrl);
     const nextAuthSession = await getAuthenticatedUserForAction();
     if (!nextAuthSession) {
         throw new Error("Unauthorized");
@@ -125,7 +135,7 @@ export async function updateAutoReply(sessionId: string, ruleId: string, data: {
         throw new Error("Rule not found");
     }
 
-    const canAccess = await canAccessSession(nextAuthSession.id, nextAuthSession.role, rule.session.sessionId);
+    const canAccess = await podeGerenciarSessao(nextAuthSession.id, nextAuthSession.role, rule.session.sessionId);
     if (!canAccess || rule.session.sessionId !== sessionId) {
         throw new Error("Forbidden");
     }

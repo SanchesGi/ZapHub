@@ -5,6 +5,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Send, Paperclip, ArrowLeft, FileText, Image as ImageIcon, Music, Video, Download, ArrowDown, CornerUpLeft, Copy, Trash2, Info, X, Sparkles, Sticker, PenLine, Search } from "lucide-react";
 import { EVENTO_ALERTAS, lerAlertas, salvarAlertas, tocarEnviada } from "@/lib/sons";
+import { lerAssinatura, salvarAssinatura } from "@/lib/assinatura";
+import { useSession as useSessaoDoPainel } from "@/components/dashboard/session-provider";
 import { BookUser, UserPlus, MessageCircle, SmilePlus, Plus, Pin, PinOff, RefreshCw, ImageOff, ChevronLeft, Forward } from "lucide-react";
 import { Tiques } from "./chat-list";
 import { Input } from "@/components/ui/input";
@@ -623,15 +625,15 @@ export function ChatWindow({ sessionId, jid, name, onBack, onOpenChat }: ChatWin
         finally { setSalvandoContato(false); }
     };
 
-    // minha versao: "Assinar" (o cliente ve "*Nome*" e a mensagem embaixo) — grupo e privado tem preferencias separadas
-    const chaveAssinar = isGroup ? "assinarGrupo" : "assinar";
+    // minha versao: "Assinar" (o cliente ve "*Nome*" e a mensagem embaixo), por sessao (lib/assinatura):
+    // privada = desligada e travada; compartilhada = ligada por padrao; grupo e conversa privada separados
+    const { sessions: sessoesDoPainel } = useSessaoDoPainel();
+    const sessaoAtual = sessoesDoPainel.find((s) => s.sessionId === sessionId);
+    const sessaoPrivada = !!sessaoAtual?.privada;
     const [assinar, setAssinar] = useState(false);
     useEffect(() => {
-        setAssinar(lerAlertas()[chaveAssinar]);
-        const h = (e: Event) => { const d = (e as CustomEvent).detail; if (d) setAssinar(!!d[chaveAssinar]); };
-        window.addEventListener(EVENTO_ALERTAS, h);
-        return () => window.removeEventListener(EVENTO_ALERTAS, h);
-    }, [chaveAssinar]);
+        setAssinar(lerAssinatura(sessionId, isGroup, sessaoAtual));
+    }, [sessionId, isGroup, sessaoAtual]);
     // a bolha ja mostra o atendente em cima; esconde a assinatura repetida do texto
     const semAssinatura = (m: Message) => {
         if (!m.fromMe || !m.sentBy || !m.content) return m.content;
@@ -1683,9 +1685,10 @@ export function ChatWindow({ sessionId, jid, name, onBack, onOpenChat }: ChatWin
                     <CorretorTexto texto={input} aoAplicar={setInput} className="h-9 w-9 rounded-full" />
 
                     <Button type="button" variant="ghost" size="icon"
-                        onClick={() => { const v = !assinar; setAssinar(v); salvarAlertas({ [chaveAssinar]: v }); toast.info(v ? `Assinando ${isGroup ? "nos grupos" : "nas conversas privadas"}: seu nome vai em negrito em cima da mensagem` : `Assinatura desligada ${isGroup ? "nos grupos" : "nas conversas privadas"}`); }}
+                        disabled={sessaoPrivada}
+                        onClick={() => { const v = !assinar; setAssinar(v); salvarAssinatura(sessionId, isGroup, v); toast.info(v ? `Assinando ${isGroup ? "nos grupos" : "nas conversas privadas"} desta sessão: seu nome vai em negrito em cima da mensagem` : `Assinatura desligada ${isGroup ? "nos grupos" : "nas conversas privadas"} desta sessão`); }}
                         className={cn("h-9 w-9 rounded-full shrink-0", assinar ? "text-primary bg-primary/15 hover:bg-primary/20" : "text-muted-foreground hover:text-foreground")}
-                        title={assinar ? "Assinatura ligada: vai *Seu Nome* e a mensagem embaixo" : "Assinar mensagens (o cliente vê seu nome)"}>
+                        title={sessaoPrivada ? "Sessão privada: mensagens sem assinatura" : assinar ? "Assinatura ligada: vai *Seu Nome* e a mensagem embaixo" : "Assinar mensagens (o cliente vê seu nome)"}>
                         <PenLine className="h-4 w-4" />
                     </Button>
                     {/* minha versao: microfone SEMPRE visivel (gravar voz); o botao enviar aparece quando ha texto */}

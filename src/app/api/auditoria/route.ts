@@ -4,9 +4,9 @@ import { getAuthenticatedUser, isAdmin, podeGerenciarUsuarios, getAccessibleSess
 
 // minha versao: GET /api/auditoria?sessionId=&busca=&origem=&usuarioId=&pagina=&limite=
 // Registro de mensagens apagadas (quem apagou, o que era, de quem).
-// - Super Administrador: tudo.
-// - Supervisor: tudo da EQUIPE dele — o que qualquer membro apagou pelo painel (em qualquer sessao), o que foi
-//   apagado nas sessoes pessoais dos membros e nas sessoes a que o proprio Supervisor tem acesso.
+// - Cada um ve so as sessoes a que tem acesso (getAccessibleSessions): o Super Administrador, todas menos as
+//   privadas de outros donos; o Supervisor, as dele e as compartilhadas com ele (nao as pessoais da equipe).
+// - Sessoes ja apagadas nao aparecem (nao ha mais a quem atribuir o acesso).
 export async function GET(req: NextRequest) {
     const user = await getAuthenticatedUser(req);
     if (!user) return NextResponse.json({ status: false, message: "Unauthorized" }, { status: 401 });
@@ -23,19 +23,17 @@ export async function GET(req: NextRequest) {
 
     const e: any[] = [{ acao: "MENSAGEM_APAGADA" }];
 
-    // escopo do Supervisor
+    // minha versao: so as sessoes a que a pessoa tem acesso. Antes o Supervisor via tambem as sessoes da equipe
+    // (inclusive as pessoais, nao compartilhadas com ele) e o que a equipe apagou em qualquer sessao; o Super
+    // Administrador nao ve as sessoes privadas de outros donos (getAccessibleSessions ja filtra).
     let equipe: { id: string; name: string | null; email: string }[] = [];
     if (!admin) {
         const ids = await idsDaEquipe(user.id);
         equipe = ids.length ? await prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, email: true } }) : [];
-        const minhas = (await getAccessibleSessions(user.id, user.role)).map((s: any) => s.sessionId as string);
-        const daEquipe = ids.length ? (await prisma.session.findMany({ where: { userId: { in: ids } }, select: { sessionId: true } })).map((s) => s.sessionId) : [];
-        const sessoesVisiveis = [...new Set([...minhas, ...daEquipe])];
-        e.push({ OR: [
-            ...(sessoesVisiveis.length ? [{ sessionId: { in: sessoesVisiveis } }] : []),
-            { usuarioId: { in: [...ids, user.id] } }, // o que a equipe (e ele) apagou pelo painel, em qualquer sessao
-        ] });
     }
+    const visiveis = await getAccessibleSessions(user.id, user.role);
+    const sessoesVisiveis = visiveis.map((s: any) => s.sessionId as string);
+    e.push({ sessionId: { in: sessoesVisiveis.length ? sessoesVisiveis : ["__nenhuma__"] } });
 
     if (sessionId) e.push({ sessionId });
     if (origem) e.push({ origem });
@@ -55,7 +53,7 @@ export async function GET(req: NextRequest) {
     const [itens, total, sessoes] = await Promise.all([
         prisma.auditoria.findMany({ where, orderBy: { criadoEm: "desc" }, skip: (pagina - 1) * limite, take: limite }),
         prisma.auditoria.count({ where }),
-        prisma.session.findMany({ select: { sessionId: true, name: true, user: { select: { name: true, email: true } } } }),
+        prisma.session.findMany({ where: { sessionId: { in: sessoesVisiveis } }, select: { sessionId: true, name: true, user: { select: { name: true, email: true } } } }),
     ]);
     // nome da sessao (e de quem e, para as pessoais da equipe)
     const nomeSessao = new Map(sessoes.map((s) => [s.sessionId, s.name]));
