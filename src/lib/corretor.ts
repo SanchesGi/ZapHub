@@ -52,7 +52,7 @@ export function revisar(spell: any, texto: string, limite = 6): ErroOrtografico[
     const fim = inicio + palavra.length;
     if (palavra.length < 2) continue;
     if (/\d/.test(palavra)) continue;                                   // tem numero (ex.: 3g, h1)
-    if (palavra === palavra.toUpperCase() && palavra.length <= 5) continue; // sigla (NOC, ETA, OLT)
+    if (palavra === palavra.toUpperCase() && palavra.length <= 5) continue; // sigla (ONG, CPF, RG)
     const antes = texto[inicio - 1];
     if (antes === "@" || antes === "#" || antes === "/" || antes === ".") continue; // mencao/tag/link
     const depois = texto[fim];
