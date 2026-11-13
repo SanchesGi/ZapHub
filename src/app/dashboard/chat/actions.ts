@@ -153,6 +153,30 @@ export async function reagirMensagem(sessionId: string, keyId: string, emoji: st
     }
 }
 
+// minha versao: editar mensagem de texto enviada (regra em lib/editar-mensagem: propria, texto, ate 15 min).
+// `jid` (opcional) amarra a mensagem a essa conversa (o programa do Windows manda; a tela do painel tambem).
+export async function editarMensagem(sessionId: string, keyId: string, texto: string, jid?: string) {
+    const user = await getAuthenticatedUserForAction();
+    if (!user) return falha("Unauthorized");
+    const canAccess = await canAccessSession(user.id, user.role, sessionId);
+    if (!canAccess) return falha("Forbidden");
+    const { textoDeEdicao } = await import("@/lib/editar-mensagem");
+    const t = textoDeEdicao(texto);
+    if (!t.ok) return falha(t.erro);
+    try {
+        let jids: string[] | undefined;
+        if (jid) {
+            const session = await prisma.session.findUnique({ where: { sessionId }, select: { id: true } });
+            if (!session) return falha("Session not found");
+            jids = await ChatService.jidsDaConversa(session.id, jid);
+        }
+        await ChatService.editar(sessionId, keyId, t.texto, jids);
+        return { success: true };
+    } catch (error: any) {
+        return falha(error?.message || "Falha ao editar a mensagem");
+    }
+}
+
 // minha versao: conversa aberta no painel -> lida (zera o contador da lista) e manda o recibo de leitura
 // ao WhatsApp para as recebidas ainda nao lidas (o celular tambem marca como lida).
 export async function marcarConversaLida(sessionId: string, jid: string) {

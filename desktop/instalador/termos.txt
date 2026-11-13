@@ -1,0 +1,32 @@
+﻿ZapHub para Windows — Termos de Uso, Privacidade e Licença
+Versão dos termos: 2026-11-13
+
+Leia antes de instalar. Para continuar, marque que aceita.
+
+1. O que é
+O ZapHub para Windows é o programa de computador do ZapHub, um sistema de atendimento por WhatsApp de código aberto. Ele se conecta ao servidor ZapHub da sua organização para ler e responder as conversas, e mostra as notificações no Windows.
+
+2. Quem é responsável pelos dados
+As conversas, os contatos, as sessões do WhatsApp e os arquivos ficam no servidor da organização que você informar, não neste aplicativo. Essa organização é a controladora dos dados para a LGPD (Lei 13.709/2018) e define as regras de uso. O autor do software não tem acesso ao seu servidor, à sua conta nem aos seus dados.
+
+3. O que o aplicativo guarda neste computador
+- o endereço do servidor e a impressão digital do certificado dele (para só se conectar a esse servidor);
+- o login, criptografado com a proteção do Windows para o seu usuário (expira; não guarda a sua senha);
+- preferências do programa (servidor, sessão escolhida, assinatura);
+- cópias temporárias das mídias que você abrir ou ouvir (apagadas ao abrir o programa de novo);
+- o registro desta instalação (instalacao.log, na pasta do aplicativo).
+O microfone só é usado enquanto você grava um áudio. O aplicativo não envia dados a terceiros e não tem telemetria.
+
+4. Uso aceitável
+Use o ZapHub conforme a lei, os termos do WhatsApp e as regras da sua organização: fale só com quem autorizou o contato, não envie spam ou golpes e não acesse conversas que não sejam do seu trabalho. O ZapHub não é produto do WhatsApp nem da Meta; ele usa uma conexão não oficial, e o WhatsApp pode restringir números que violem as regras dele.
+
+5. Os termos completos do painel
+Para usar um servidor, você também precisa aceitar os Termos de Uso e a Política de Privacidade daquele servidor, mostrados no primeiro acesso ao painel.
+
+6. Licença
+Copyright (C) 2026 Ailan Sanches.
+Este programa é software livre: você pode redistribuí-lo e/ou modificá-lo sob os termos da GNU Affero General Public License, versão 3 (AGPL-3.0-only), publicada pela Free Software Foundation.
+Este programa é distribuído na esperança de ser útil, mas SEM NENHUMA GARANTIA, nem mesmo a garantia implícita de COMERCIALIZAÇÃO ou de ADEQUAÇÃO A UM PROPÓSITO ESPECÍFICO. Veja a licença completa em https://www.gnu.org/licenses/agpl-3.0.html e o código-fonte em https://github.com/SanchesGi/ZapHub.
+Avisos de licença de terceiros: arquivo CREDITOS.md do projeto.
+
+Contato: ailansanches@tutamail.com

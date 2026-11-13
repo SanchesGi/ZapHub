@@ -4,6 +4,7 @@ import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { registrarApagada, marcarApagandoPeloPainel } from "@/lib/auditoria";
 import { jidNormalizedUser } from "@whiskeysockets/baileys";
+import { sincronizaEstadoChat } from "@/modules/whatsapp/store/estado-chat";
 
 // DELETE: Delete message for everyone
 export async function DELETE(
@@ -64,11 +65,13 @@ export async function DELETE(
         marcarApagandoPeloPainel(messageId);
         if (modo === "TODOS") {
             await sock.sendMessage(remoteJid, { delete: key });
-        } else {
+        } else if (sincronizaEstadoChat()) {
             await sock.chatModify({
                 deleteForMe: { deleteMedia: false, key, timestamp: Math.floor((msg?.timestamp?.getTime() || Date.now()) / 1000) }
             }, remoteJid);
         }
+        // minha versao: sem SINCRONIZAR_ESTADO_CHAT nenhum chatModify sai (um envio malformado pode deslogar a conta):
+        // "so para mim" vira apagar so no ZapHub (auditoria + banco), e o aviso diz isso
 
         // auditoria + some do painel (o conteudo fica so no registro)
         if (msg && dbSession) {
@@ -88,7 +91,9 @@ export async function DELETE(
         return NextResponse.json({
             status: true,
             modo,
-            message: modo === "TODOS" ? "Mensagem apagada para todos" : "Mensagem de outra pessoa: o WhatsApp só permite apagar para você",
+            message: modo === "TODOS" ? "Mensagem apagada para todos"
+                : sincronizaEstadoChat() ? "Mensagem de outra pessoa: o WhatsApp só permite apagar para você"
+                : "Apagada só no ZapHub (o WhatsApp do celular continua com ela)",
         });
 
     } catch (error: any) {

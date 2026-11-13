@@ -28,6 +28,14 @@ export function ChatLayoutClient({ sessionId, initialJid }: ChatLayoutClientProp
     const [selectedChat, setSelectedChat] = useState<SelectedChat | null>(
         initialJid ? { jid: initialJid } : null
     );
+    // minha versao: segunda camada contra "conversa de uma sessao aberta na outra": se a sessao mudar com este
+    // componente vivo, fecha a conversa (ajuste durante a renderizacao, padrao do React para estado que depende
+    // de prop). A troca pelo seletor ja volta para a lista (session-provider).
+    const [sessaoDaConversa, setSessaoDaConversa] = useState(sessionId);
+    if (sessaoDaConversa !== sessionId) {
+        setSessaoDaConversa(sessionId);
+        setSelectedChat(null);
+    }
 
     // --- lista redimensionavel (largura persistida no navegador) ---
     const [larguraLista, setLarguraLista] = useState(LARGURA_PADRAO);
@@ -165,8 +173,10 @@ export function ChatLayoutClient({ sessionId, initialJid }: ChatLayoutClientProp
             <div className={`flex-1 overflow-hidden flex flex-col min-w-0
                 ${!selectedChat ? "hidden md:flex" : "flex"}`}
             >
-                {selectedChat ? (
+                {selectedChat && sessaoDaConversa === sessionId ? (
                     <ChatWindow
+                        // sessao + conversa: rascunho, resposta e anexos nunca passam de uma sessao para outra
+                        key={`${sessionId}|${selectedChat.jid}`}
                         sessionId={sessionId}
                         jid={selectedChat.jid}
                         name={selectedChat.name}

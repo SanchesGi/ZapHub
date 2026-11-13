@@ -1,0 +1,43 @@
+[package]
+name = "zaphub"
+version = "2.5.0"
+description = "ZapHub para Windows"
+license = "AGPL-3.0-only"
+edition = "2021"
+build = "build.rs"
+
+[dependencies]
+slint = { version = "1", features = ["raw-window-handle-06"] }
+raw-window-handle = "0.6"
+tray-icon = "0.19"
+winreg = "0.52"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "net"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-manual-roots-no-provider", "json", "multipart"] }
+tokio-tungstenite = { version = "0.24", default-features = false, features = ["connect", "__rustls-tls"] }
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+rustls = { version = "0.23", default-features = false, features = ["std", "ring", "tls12"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+bytes = "1"
+url = "2"
+sha2 = "0.10"
+x509-parser = "0.16"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Security_Cryptography", "Win32_System_Memory", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging", "Win32_System_Threading", "Win32_Security", "Win32_System_Com"] }
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "gif"] }
+rfd = "0.15"
+arboard = "3"
+cpal = "0.15"
+hound = "3.5"
+windows = { version = "0.58", features = ["Media_Playback", "Media_Core", "Foundation", "UI_Notifications", "Data_Xml_Dom", "Win32_UI_Shell"] }
+
+[build-dependencies]
+slint-build = "1"
+winresource = "0.1"
+
+[profile.release]
+lto = true
+opt-level = "s"
+strip = true
+codegen-units = 1
+panic = "abort"

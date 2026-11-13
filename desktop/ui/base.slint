@@ -1,0 +1,141 @@
+// Base visual do ZapHub para Windows: tema (grafite + ambar #F4A935) e componentes simples usados pelas telas.
+import { Spinner } from "std-widgets.slint";
+
+export global Tema {
+    // superficies sobem de tom com a elevacao (como no painel)
+    out property <color> fundo: #111110;
+    out property <color> lateral: #171715;
+    out property <color> cartao: #1B1B19;
+    out property <color> elevado: #232321;
+    out property <color> realce: #2C2A26;
+    out property <color> borda: #2F2F2C;
+    out property <color> campo: #222220;
+    out property <color> texto: #EDEDEB;
+    out property <color> apagado: #A6A5A1;
+    out property <color> fraco: #6F6E6A;
+    out property <color> destaque: #F4A935;
+    out property <color> destaque-suave: #F4A93524;
+    out property <color> sobre-destaque: #16130C;
+    out property <color> minha: #33281A;
+    out property <color> minha-borda: #4A3920;
+    out property <color> outra: #1F1F1D;
+    out property <color> erro: #E5484D;
+    out property <color> erro-fundo: #3B1719;
+    out property <color> ok: #46A758;
+    out property <[color]> pessoas: [#E8A33D, #6CB4EE, #E57373, #81C784, #BA68C8, #4DB6AC, #F06292, #A1887F, #9FA8DA, #FFD54F];
+    out property <length> raio: 10px;
+}
+
+export component Icone inherits Image {
+    in property <color> cor: Tema.apagado;
+    width: 18px; height: 18px;
+    colorize: cor;
+    image-fit: contain;
+}
+
+export component BotaoIcone inherits Rectangle {
+    in property <image> icone;
+    in property <bool> ligado;
+    in property <string> dica;
+    in property <length> tamanho: 36px;
+    in property <bool> ativo: true;
+    callback clicado();
+    width: tamanho; height: tamanho;
+    border-radius: tamanho / 2;
+    background: ligado ? Tema.destaque-suave : toque.has-hover && ativo ? Tema.realce : transparent;
+    animate background { duration: 140ms; }
+    Icone { source: root.icone; cor: !root.ativo ? Tema.fraco : root.ligado ? Tema.destaque : toque.has-hover ? Tema.texto : Tema.apagado; }
+    toque := TouchArea { mouse-cursor: root.ativo ? pointer : default; clicked => { if (root.ativo) { root.clicado(); } } }
+    if toque.has-hover && root.dica != "": Rectangle {
+        y: root.height + 6px;
+        x: min(0px, (root.width - dica-t.preferred-width - 16px) / 2);
+        width: dica-t.preferred-width + 16px; height: 26px;
+        border-radius: 6px; background: Tema.elevado; border-width: 1px; border-color: Tema.borda;
+        dica-t := Text { text: root.dica; color: Tema.texto; font-size: 12px; }
+    }
+}
+
+export component Botao inherits Rectangle {
+    in property <string> texto;
+    in property <bool> principal: true;
+    in property <bool> ativo: true;
+    in property <bool> ocupado;
+    callback clicado();
+    height: 40px;
+    min-width: 110px;
+    border-radius: 8px;
+    background: !ativo ? Tema.elevado : principal ? (toque.pressed ? Tema.destaque.darker(15%) : toque.has-hover ? Tema.destaque.brighter(8%) : Tema.destaque) : (toque.has-hover ? Tema.realce : transparent);
+    border-width: principal ? 0 : 1px;
+    border-color: Tema.borda;
+    animate background { duration: 140ms; }
+    HorizontalLayout {
+        padding-left: 18px; padding-right: 18px; spacing: 8px;
+        alignment: center;
+        if root.ocupado: Spinner { width: 16px; height: 16px; indeterminate: true; }
+        Text { text: root.texto; color: root.principal && root.ativo ? Tema.sobre-destaque : root.ativo ? Tema.texto : Tema.fraco; font-weight: 600; vertical-alignment: center; }
+    }
+    toque := TouchArea { mouse-cursor: root.ativo ? pointer : default; clicked => { if (root.ativo) { root.clicado(); } } }
+}
+
+export component Campo inherits Rectangle {
+    in property <string> rotulo;
+    in property <string> dica;
+    in property <bool> senha;
+    in property <bool> habilitado: true;
+    in property <InputType> tipo: text;
+    in-out property <string> texto;
+    callback confirmado();
+    callback editado(string);
+    public function focar() { entrada.focus(); }
+    height: corpo.preferred-height;
+    corpo := VerticalLayout {
+        spacing: 6px;
+        if root.rotulo != "": Text { text: root.rotulo; color: Tema.apagado; font-size: 12px; font-weight: 600; }
+        Rectangle {
+            height: 42px;
+            border-radius: 8px;
+            background: Tema.campo;
+            border-width: 1px;
+            border-color: entrada.has-focus ? Tema.destaque : Tema.borda;
+            animate border-color { duration: 160ms; }
+            entrada := TextInput {
+                x: 12px; width: parent.width - 24px;
+                vertical-alignment: center;
+                text <=> root.texto;
+                color: Tema.texto;
+                enabled: root.habilitado;
+                input-type: root.senha ? password : root.tipo;
+                selection-background-color: #F4A93555;
+                single-line: true;
+                accepted => { root.confirmado(); }
+                edited => { root.editado(self.text); }
+            }
+            if root.texto == "" && root.dica != "": Text { x: 12px; text: root.dica; color: Tema.fraco; vertical-alignment: center; height: parent.height; }
+        }
+    }
+}
+
+export component Avatar inherits Rectangle {
+    in property <string> inicial;
+    in property <int> cor;
+    in property <bool> grupo;
+    in property <length> tamanho: 44px;
+    // foto de perfil (quando o servidor entrega); sem foto, a inicial colorida
+    in property <image> foto;
+    in property <bool> tem-foto;
+    width: tamanho; height: tamanho;
+    border-radius: tamanho / 2;
+    clip: true;
+    background: Tema.pessoas[Math.mod(cor, 10)].transparentize(78%);
+    if !root.grupo && !root.tem-foto: Text { text: root.inicial; color: Tema.pessoas[Math.mod(root.cor, 10)]; font-weight: 700; font-size: root.tamanho * 0.4; horizontal-alignment: center; vertical-alignment: center; width: parent.width; height: parent.height; }
+    if root.grupo && !root.tem-foto: Icone { source: @image-url("icones/grupo.svg"); cor: Tema.pessoas[Math.mod(root.cor, 10)]; width: root.tamanho * 0.45; height: root.tamanho * 0.45; x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2; }
+    if root.tem-foto: Image {
+        width: parent.width; height: parent.height;
+        source: root.foto;
+        image-fit: cover;
+        property <float> aparece: 0;
+        opacity: aparece;
+        animate aparece { duration: 220ms; easing: ease-out; }
+        init => { aparece = 1; }
+    }
+}

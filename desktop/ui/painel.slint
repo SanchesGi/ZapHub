@@ -1,0 +1,527 @@
+// Painel do ZapHub para Windows: nova conversa, menu da conversa, informacoes do contato/grupo,
+// termos do servidor e configuracoes. O estado vem do Rust pelo global `Painel` (src/painel.rs).
+// Tudo que vem do WhatsApp (nomes, descricao) e mostrado como texto, nunca como marcacao.
+import { ListView, ScrollView, Spinner } from "std-widgets.slint";
+import { Tema, Icone, BotaoIcone, Botao, Campo, Avatar } from "base.slint";
+
+export struct ContatoItem {
+    jid: string,
+    nome: string,
+    numero: string,
+    inicial: string,
+    cor: int,
+    tem-conversa: bool,
+}
+
+export struct ParticipanteItem {
+    nome: string,
+    detalhe: string,
+    inicial: string,
+    cor: int,
+    admin: bool,
+}
+
+export global Painel {
+    // ---- janela ----
+    in-out property <string> titulo: "ZapHub";
+    in-out property <length> janela-altura: 800px;
+
+    // ---- conversa aberta (cabecalho) ----
+    in property <image> cab-foto;
+    in property <bool> cab-tem-foto;
+    in property <bool> cab-fixada;
+    in property <bool> cab-silenciada;
+    in property <bool> cab-arquivada;
+    in property <bool> cab-nao-lida;
+    // jid, acao: arquivar | desarquivar | silenciar-8h | silenciar-1s | silenciar-sempre | dessilenciar | fixar | desfixar | nao-lida | lida
+    callback acao-conversa(string, string);
+
+    // ---- nova conversa ----
+    in-out property <bool> novo-aberto;
+    in property <[ContatoItem]> contatos;
+    in property <bool> contatos-carregando;
+    in property <string> contatos-erro;
+    in property <bool> verificando;
+    in property <string> numero-erro;
+    callback abrir-novo();
+    callback buscar-contatos(string);
+    callback mais-contatos();
+    callback escolher-contato(string);
+    callback verificar-numero(string);
+
+    // ---- informacoes ----
+    in-out property <bool> info-aberto;
+    in property <bool> info-carregando;
+    in property <string> info-erro;
+    in property <string> info-jid;
+    in property <string> info-nome;
+    in property <string> info-numero;
+    in property <string> info-descricao;
+    in property <string> info-inicial;
+    in property <int> info-cor;
+    in property <bool> info-grupo;
+    in property <int> info-total;
+    in property <image> info-foto;
+    in property <bool> info-tem-foto;
+    in property <[ParticipanteItem]> info-participantes;
+    callback alternar-info();
+
+    // ---- termos do servidor ----
+    in property <bool> termos-aberto;
+    in property <string> termos-versao;
+    in property <string> termos-vigencia;
+    in property <string> termos-servidor;
+    in property <string> termos-erro;
+    in property <bool> termos-ocupado;
+    callback aceitar-termos();
+    callback recusar-termos();
+    // "terms" ou "privacy": abre a pagina do proprio servidor no navegador padrao
+    callback abrir-pagina-termos(string);
+
+    // ---- configuracoes ----
+    in-out property <bool> config-aberto;
+    in property <string> cfg-servidor;
+    in property <string> cfg-certificado;
+    in property <string> cfg-usuario;
+    in property <string> cfg-versao;
+    in property <bool> cfg-inicio;
+    in property <bool> cfg-notificacoes;
+    in property <bool> cfg-som;
+    callback config-aberta();
+    callback definir-inicio(bool);
+    callback definir-notificacoes(bool);
+    callback definir-som(bool);
+    callback testar-notificacao();
+    callback trocar-servidor();
+    callback sair-conta();
+}
+
+// ---------- menu da conversa ----------
+component ItemMenu inherits Rectangle {
+    in property <string> texto;
+    in property <image> icone;
+    callback clicado();
+    height: 36px;
+    border-radius: 6px;
+    background: toque.has-hover ? Tema.realce : transparent;
+    animate background { duration: 120ms; }
+    HorizontalLayout {
+        padding-left: 10px; padding-right: 10px; spacing: 10px;
+        VerticalLayout { alignment: center; Icone { source: root.icone; cor: toque.has-hover ? Tema.destaque : Tema.apagado; width: 16px; height: 16px; } }
+        Text { text: root.texto; color: Tema.texto; vertical-alignment: center; font-size: 13px; overflow: elide; horizontal-stretch: 1; }
+    }
+    toque := TouchArea { mouse-cursor: pointer; clicked => { root.clicado(); } }
+}
+
+// Conteudo do menu (fica dentro de um PopupWindow, no item da lista e no cabecalho da conversa).
+export component MenuConversa inherits Rectangle {
+    in property <string> jid;
+    in property <bool> fixada;
+    in property <bool> silenciada;
+    in property <bool> arquivada;
+    in property <bool> nao-lida;
+    callback fechar();
+    property <bool> submenu;
+    property <float> aparece: 0;
+    width: 224px;
+    height: coluna.preferred-height;
+    opacity: aparece;
+    animate aparece { duration: 140ms; easing: ease-out; }
+    init => { aparece = 1; }
+    background: Tema.elevado;
+    border-radius: 10px;
+    border-width: 1px; border-color: Tema.borda;
+    drop-shadow-blur: 18px; drop-shadow-color: #00000090;
+    coluna := VerticalLayout {
+        padding: 6px; spacing: 2px;
+        if !root.submenu: ItemMenu {
+            texto: root.nao-lida ? "Marcar como lida" : "Marcar como não lida";
+            icone: root.nao-lida ? @image-url("icones/lida.svg") : @image-url("icones/naolida.svg");
+            clicado => { Painel.acao-conversa(root.jid, root.nao-lida ? "lida" : "nao-lida"); root.fechar(); }
+        }
+        if !root.submenu && !root.arquivada: ItemMenu {
+            texto: root.fixada ? "Desafixar" : "Fixar no topo";
+            icone: root.fixada ? @image-url("icones/desafixar.svg") : @image-url("icones/fixar.svg");
+            clicado => { Painel.acao-conversa(root.jid, root.fixada ? "desfixar" : "fixar"); root.fechar(); }
+        }
+        if !root.submenu && root.silenciada: ItemMenu {
+            texto: "Reativar som";
+            icone: @image-url("icones/sino.svg");
+            clicado => { Painel.acao-conversa(root.jid, "dessilenciar"); root.fechar(); }
+        }
+        if !root.submenu && !root.silenciada: ItemMenu {
+            texto: "Silenciar…";
+            icone: @image-url("icones/mudo.svg");
+            clicado => { root.submenu = true; }
+        }
+        if !root.submenu: ItemMenu {
+            texto: root.arquivada ? "Desarquivar" : "Arquivar";
+            icone: root.arquivada ? @image-url("icones/desarquivar.svg") : @image-url("icones/arquivar.svg");
+            clicado => { Painel.acao-conversa(root.jid, root.arquivada ? "desarquivar" : "arquivar"); root.fechar(); }
+        }
+        if root.submenu: ItemMenu { texto: "Voltar"; icone: @image-url("icones/voltar.svg"); clicado => { root.submenu = false; } }
+        if root.submenu: ItemMenu { texto: "Por 8 horas"; icone: @image-url("icones/mudo.svg"); clicado => { Painel.acao-conversa(root.jid, "silenciar-8h"); root.fechar(); } }
+        if root.submenu: ItemMenu { texto: "Por 1 semana"; icone: @image-url("icones/mudo.svg"); clicado => { Painel.acao-conversa(root.jid, "silenciar-1s"); root.fechar(); } }
+        if root.submenu: ItemMenu { texto: "Sempre"; icone: @image-url("icones/mudo.svg"); clicado => { Painel.acao-conversa(root.jid, "silenciar-sempre"); root.fechar(); } }
+    }
+}
+
+// ---------- pecas dos dialogos ----------
+// fundo escuro que aparece e some com suavidade; clicar fora fecha
+component Cortina inherits Rectangle {
+    in property <bool> aberta;
+    callback fechar();
+    property <float> nivel: root.aberta ? 1 : 0;
+    animate nivel { duration: 180ms; easing: ease-out; }
+    visible: root.aberta || root.nivel > 0.01;
+    opacity: root.nivel;
+    background: #000000B8;
+    TouchArea { clicked => { root.fechar(); } }
+    @children
+}
+
+component Interruptor inherits Rectangle {
+    in property <bool> ligado;
+    in property <bool> ativo: true;
+    callback alterado(bool);
+    width: 44px; height: 24px; border-radius: 12px;
+    background: !root.ativo ? Tema.elevado : root.ligado ? Tema.destaque : toque.has-hover ? Tema.realce : Tema.borda;
+    animate background { duration: 140ms; }
+    Rectangle {
+        width: 18px; height: 18px; border-radius: 9px; y: 3px;
+        x: root.ligado ? 23px : 3px;
+        animate x { duration: 150ms; easing: ease-out; }
+        background: root.ligado && root.ativo ? Tema.sobre-destaque : Tema.apagado;
+    }
+    toque := TouchArea { mouse-cursor: root.ativo ? pointer : default; clicked => { if (root.ativo) { root.alterado(!root.ligado); } } }
+}
+
+component Rotulo inherits Text {
+    color: Tema.fraco; font-size: 11px; font-weight: 700; letter-spacing: 0.5px;
+}
+
+// ---------- nova conversa ----------
+component DialogoNovaConversa inherits Cortina {
+    aberta: Painel.novo-aberto;
+    fechar => { Painel.novo-aberto = false; }
+    property <bool> ab: Painel.novo-aberto;
+    changed ab => { if (root.ab) { busca.focar(); } }
+    Rectangle {
+        width: min(480px, parent.width - 32px);
+        height: min(620px, parent.height - 48px);
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2 + (root.aberta ? 0px : 16px);
+        animate y { duration: 220ms; easing: ease-out; }
+        background: Tema.cartao;
+        border-radius: 14px; border-width: 1px; border-color: Tema.borda;
+        drop-shadow-blur: 32px; drop-shadow-color: #000000C0;
+        TouchArea { }
+        FocusScope {
+            key-pressed(ev) => {
+                if (ev.text == Key.Escape) { Painel.novo-aberto = false; return accept; }
+                return reject;
+            }
+            VerticalLayout {
+                padding: 20px; spacing: 12px;
+                HorizontalLayout {
+                    Text { text: "Nova conversa"; color: Tema.texto; font-size: 18px; font-weight: 700; horizontal-stretch: 1; vertical-alignment: center; }
+                    BotaoIcone { icone: @image-url("icones/fechar.svg"); tamanho: 32px; dica: "Fechar"; clicado => { Painel.novo-aberto = false; } }
+                }
+                busca := Campo {
+                    dica: "Buscar contato por nome ou número";
+                    editado(t) => { Painel.buscar-contatos(t); }
+                }
+                Rectangle {
+                    vertical-stretch: 1;
+                    ListView {
+                        for c in Painel.contatos: Rectangle {
+                            height: 56px; border-radius: 8px;
+                            background: item.has-hover ? Tema.realce : transparent;
+                            animate background { duration: 120ms; }
+                            HorizontalLayout {
+                                padding-left: 10px; padding-right: 10px; spacing: 12px;
+                                VerticalLayout { alignment: center; Avatar { inicial: c.inicial; cor: c.cor; tamanho: 38px; } }
+                                VerticalLayout {
+                                    alignment: center; spacing: 2px; horizontal-stretch: 1;
+                                    Text { text: c.nome; color: Tema.texto; font-weight: 600; overflow: elide; }
+                                    Text { text: c.numero; color: Tema.apagado; font-size: 12px; overflow: elide; }
+                                }
+                                if c.tem-conversa: VerticalLayout { alignment: center; Text { text: "conversa aberta"; color: Tema.fraco; font-size: 11px; } }
+                            }
+                            item := TouchArea { mouse-cursor: pointer; clicked => { Painel.escolher-contato(c.jid); } }
+                        }
+                        changed content-y => {
+                            if (self.content-height > self.visible-height && self.content-y <= self.visible-height - self.content-height + 60px) { Painel.mais-contatos(); }
+                        }
+                    }
+                    if Painel.contatos-carregando && Painel.contatos.length == 0: Spinner { width: 26px; height: 26px; indeterminate: true; }
+                    if !Painel.contatos-carregando && Painel.contatos.length == 0 && Painel.contatos-erro == "": Text {
+                        text: "Nenhum contato encontrado. Digite o número abaixo.";
+                        color: Tema.apagado; horizontal-alignment: center; vertical-alignment: center; wrap: word-wrap;
+                    }
+                    if Painel.contatos-erro != "": Text {
+                        text: Painel.contatos-erro; color: #F3B2B4; horizontal-alignment: center; vertical-alignment: center; wrap: word-wrap;
+                    }
+                }
+                Rectangle { height: 1px; background: Tema.borda; }
+                Rotulo { text: "OU DIGITE UM NÚMERO COM DDD"; }
+                HorizontalLayout {
+                    spacing: 10px; alignment: stretch;
+                    numero := Campo {
+                        dica: "(41) 99999-8888";
+                        habilitado: !Painel.verificando;
+                        horizontal-stretch: 1;
+                        confirmado => { Painel.verificar-numero(self.texto); }
+                    }
+                    VerticalLayout { alignment: end; Botao {
+                        texto: "Abrir";
+                        min-width: 96px;
+                        ocupado: Painel.verificando;
+                        ativo: numero.texto != "" && !Painel.verificando;
+                        clicado => { Painel.verificar-numero(numero.texto); }
+                    } }
+                }
+                if Painel.numero-erro != "": Text { text: Painel.numero-erro; color: #F3B2B4; font-size: 12px; wrap: word-wrap; }
+            }
+        }
+    }
+}
+
+// ---------- configuracoes ----------
+component Linha inherits Rectangle {
+    in property <string> titulo;
+    in property <string> detalhe;
+    height: lin.preferred-height;
+    lin := HorizontalLayout {
+        padding-top: 10px; padding-bottom: 10px; spacing: 16px;
+        VerticalLayout {
+            horizontal-stretch: 1; alignment: center; spacing: 2px;
+            Text { text: root.titulo; color: Tema.texto; font-weight: 600; }
+            if root.detalhe != "": Text { text: root.detalhe; color: Tema.apagado; font-size: 12px; wrap: word-wrap; }
+        }
+        VerticalLayout { alignment: center; @children }
+    }
+}
+
+component DialogoConfig inherits Cortina {
+    aberta: Painel.config-aberto;
+    fechar => { Painel.config-aberto = false; }
+    property <bool> ab: Painel.config-aberto;
+    property <bool> confirmar-troca;
+    changed ab => { if (root.ab) { root.confirmar-troca = false; Painel.config-aberta(); } }
+    Rectangle {
+        width: min(520px, parent.width - 32px);
+        height: min(640px, parent.height - 48px);
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2 + (root.aberta ? 0px : 16px);
+        animate y { duration: 220ms; easing: ease-out; }
+        background: Tema.cartao;
+        border-radius: 14px; border-width: 1px; border-color: Tema.borda;
+        drop-shadow-blur: 32px; drop-shadow-color: #000000C0;
+        TouchArea { }
+        FocusScope {
+            key-pressed(ev) => {
+                if (ev.text == Key.Escape) { Painel.config-aberto = false; return accept; }
+                return reject;
+            }
+            VerticalLayout {
+                padding: 20px; spacing: 8px;
+                HorizontalLayout {
+                    Text { text: "Configurações"; color: Tema.texto; font-size: 18px; font-weight: 700; horizontal-stretch: 1; vertical-alignment: center; }
+                    BotaoIcone { icone: @image-url("icones/fechar.svg"); tamanho: 32px; dica: "Fechar"; clicado => { Painel.config-aberto = false; } }
+                }
+                ScrollView {
+                    vertical-stretch: 1;
+                    VerticalLayout {
+                        spacing: 4px;
+                        padding-right: 12px;
+                        Rotulo { text: "SERVIDOR"; }
+                        Rectangle {
+                            background: Tema.fundo; border-radius: 10px; border-width: 1px; border-color: Tema.borda;
+                            height: srv.preferred-height;
+                            srv := VerticalLayout {
+                                padding: 14px; spacing: 4px;
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    Icone { source: @image-url("icones/cadeado.svg"); cor: Tema.ok; width: 14px; height: 14px; }
+                                    Text { text: Painel.cfg-servidor; color: Tema.texto; overflow: elide; horizontal-stretch: 1; vertical-alignment: center; }
+                                }
+                                Rectangle { height: 6px; }
+                                Rotulo { text: "IMPRESSÃO DIGITAL DO CERTIFICADO (SHA-256)"; }
+                                Text { text: Painel.cfg-certificado; color: Tema.destaque; wrap: char-wrap; font-family: "Cascadia Mono"; font-size: 12px; }
+                            }
+                        }
+                        HorizontalLayout {
+                            padding-top: 6px; spacing: 10px; alignment: start;
+                            if !root.confirmar-troca: Botao { texto: "Trocar servidor"; principal: false; clicado => { root.confirmar-troca = true; } }
+                            if root.confirmar-troca: Text { text: "Isso desconecta esta conta deste computador."; color: Tema.apagado; font-size: 12px; vertical-alignment: center; wrap: word-wrap; horizontal-stretch: 1; }
+                            if root.confirmar-troca: Botao { texto: "Cancelar"; principal: false; min-width: 90px; clicado => { root.confirmar-troca = false; } }
+                            if root.confirmar-troca: Botao { texto: "Trocar"; min-width: 90px; clicado => { Painel.config-aberto = false; Painel.trocar-servidor(); } }
+                        }
+                        Rectangle { height: 12px; }
+                        Rotulo { text: "PROGRAMA"; }
+                        Linha {
+                            titulo: "Iniciar com o Windows";
+                            detalhe: "Abre escondido, na bandeja, quando você entra no computador.";
+                            Interruptor { ligado: Painel.cfg-inicio; alterado(v) => { Painel.definir-inicio(v); } }
+                        }
+                        Rectangle { height: 1px; background: Tema.borda; }
+                        Linha {
+                            titulo: "Notificações";
+                            detalhe: "Avisa no Windows quando chega mensagem.";
+                            Interruptor { ligado: Painel.cfg-notificacoes; alterado(v) => { Painel.definir-notificacoes(v); } }
+                        }
+                        Rectangle { height: 1px; background: Tema.borda; }
+                        Linha {
+                            titulo: "Som das notificações";
+                            detalhe: Painel.cfg-notificacoes ? "Toca um som junto com o aviso." : "Ligue as notificações para usar o som.";
+                            Interruptor { ligado: Painel.cfg-som; ativo: Painel.cfg-notificacoes; alterado(v) => { Painel.definir-som(v); } }
+                        }
+                        HorizontalLayout {
+                            padding-top: 6px; alignment: start;
+                            Botao { texto: "Testar notificação"; principal: false; ativo: Painel.cfg-notificacoes; clicado => { Painel.testar-notificacao(); } }
+                        }
+                        Rectangle { height: 12px; }
+                        Rotulo { text: "CONTA"; }
+                        Linha {
+                            titulo: Painel.cfg-usuario != "" ? Painel.cfg-usuario : "Conta";
+                            detalhe: "Sair apaga o login guardado neste computador.";
+                            Botao { texto: "Sair da conta"; principal: false; min-width: 120px; clicado => { Painel.config-aberto = false; Painel.sair-conta(); } }
+                        }
+                        Rectangle { height: 8px; }
+                        Text { text: "ZapHub para Windows · " + Painel.cfg-versao; color: Tema.fraco; font-size: 11px; }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ---------- termos do servidor ----------
+component TelaTermos inherits Rectangle {
+    property <bool> aberta: Painel.termos-aberto;
+    property <float> nivel: root.aberta ? 1 : 0;
+    animate nivel { duration: 240ms; easing: ease-out; }
+    visible: root.aberta || root.nivel > 0.01;
+    opacity: root.nivel;
+    background: Tema.fundo;
+    TouchArea { }
+    HorizontalLayout {
+        alignment: center;
+        VerticalLayout {
+            alignment: center;
+            width: min(720px, root.width - 48px);
+            padding-top: 24px; padding-bottom: 24px;
+            spacing: 12px;
+            Icone { source: @image-url("icones/escudo.svg"); cor: Tema.destaque; width: 32px; height: 32px; }
+            Text { text: "Termos de Uso"; color: Tema.texto; font-size: 24px; font-weight: 700; }
+            Text {
+                text: "Para continuar, leia e aceite os termos do servidor " + Painel.termos-servidor + ". Versão " + Painel.termos-versao + (Painel.termos-vigencia != "" ? " · vigente desde " + Painel.termos-vigencia : "") + ".";
+                color: Tema.apagado; wrap: word-wrap;
+            }
+            Rectangle {
+                background: Tema.cartao; border-radius: 12px; border-width: 1px; border-color: Tema.borda;
+                height: leitura.preferred-height;
+                leitura := VerticalLayout {
+                    padding: 18px; spacing: 12px;
+                    Text { text: "Os textos ficam no seu servidor. Abra e leia antes de aceitar:"; color: Tema.texto; wrap: word-wrap; }
+                    HorizontalLayout {
+                        spacing: 10px; alignment: start;
+                        Botao { texto: "Ler os Termos de Uso"; principal: false; clicado => { Painel.abrir-pagina-termos("terms"); } }
+                        Botao { texto: "Ler a Política de Privacidade"; principal: false; clicado => { Painel.abrir-pagina-termos("privacy"); } }
+                    }
+                    Text { text: "Ao aceitar, fica registrado, com data e versão, que você leu e concorda."; color: Tema.apagado; font-size: 12px; wrap: word-wrap; }
+                }
+            }
+            Rectangle { vertical-stretch: 1; }
+            if Painel.termos-erro != "": Rectangle {
+                background: Tema.erro-fundo; border-radius: 8px;
+                height: erro-l.preferred-height;
+                erro-l := HorizontalLayout {
+                    padding: 12px; spacing: 10px;
+                    Icone { source: @image-url("icones/alerta.svg"); cor: Tema.erro; }
+                    Text { text: Painel.termos-erro; color: #F3B2B4; wrap: word-wrap; vertical-alignment: center; }
+                }
+            }
+            HorizontalLayout {
+                alignment: end; spacing: 10px;
+                Botao { texto: "Não aceitar e sair"; principal: false; ativo: !Painel.termos-ocupado; clicado => { Painel.recusar-termos(); } }
+                Botao { texto: Painel.termos-ocupado ? "Registrando" : "Aceitar e continuar"; ocupado: Painel.termos-ocupado; ativo: !Painel.termos-ocupado; clicado => { Painel.aceitar-termos(); } }
+            }
+        }
+    }
+}
+
+// Todas as camadas por cima da janela (uma instancia so, no fim do App).
+export component CamadasPainel inherits Rectangle {
+    DialogoNovaConversa { }
+    DialogoConfig { }
+    TelaTermos { }
+}
+
+// ---------- informacoes do contato/grupo (coluna a direita) ----------
+export component PainelInfo inherits Rectangle {
+    width: Painel.info-aberto ? 330px : 0px;
+    animate width { duration: 240ms; easing: ease-out; }
+    clip: true;
+    background: Tema.lateral;
+    Rectangle {
+        x: 0; width: 330px; height: parent.height;
+        Rectangle { x: 0; width: 1px; background: Tema.borda; }
+        VerticalLayout {
+            padding-left: 1px;
+            Rectangle {
+                height: 68px;
+                HorizontalLayout {
+                    padding-left: 18px; padding-right: 12px; spacing: 8px;
+                    Text { text: Painel.info-grupo ? "Informações do grupo" : "Informações do contato"; color: Tema.texto; font-weight: 700; font-size: 15px; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
+                    VerticalLayout { alignment: center; BotaoIcone { icone: @image-url("icones/fechar.svg"); tamanho: 32px; dica: "Fechar"; clicado => { Painel.info-aberto = false; Painel.alternar-info(); } } }
+                }
+            }
+            Rectangle { height: 1px; background: Tema.borda; }
+            VerticalLayout {
+                vertical-stretch: 1;
+                padding: 18px; spacing: 10px;
+                HorizontalLayout { alignment: center; Avatar { inicial: Painel.info-inicial; cor: Painel.info-cor; grupo: Painel.info-grupo; foto: Painel.info-foto; tem-foto: Painel.info-tem-foto; tamanho: 132px; } }
+                Text { text: Painel.info-nome; color: Tema.texto; font-size: 18px; font-weight: 700; horizontal-alignment: center; wrap: word-wrap; }
+                if Painel.info-numero != "": Text { text: Painel.info-numero; color: Tema.apagado; horizontal-alignment: center; wrap: word-wrap; }
+                if Painel.info-carregando: HorizontalLayout { alignment: center; Spinner { width: 22px; height: 22px; indeterminate: true; } }
+                if Painel.info-erro != "": Text { text: Painel.info-erro; color: #F3B2B4; horizontal-alignment: center; wrap: word-wrap; font-size: 12px; }
+                if Painel.info-descricao != "": VerticalLayout {
+                    spacing: 4px;
+                    Rotulo { text: "DESCRIÇÃO"; }
+                    Flickable {
+                        height: min(desc.preferred-height, 120px);
+                        content-height: desc.preferred-height;
+                        desc := Text { text: Painel.info-descricao; color: Tema.texto; wrap: word-wrap; font-size: 13px; width: parent.width; }
+                    }
+                }
+                if Painel.info-grupo && Painel.info-total > 0: Rotulo { text: Painel.info-total == 1 ? "1 PARTICIPANTE" : Painel.info-total + " PARTICIPANTES"; }
+                if Painel.info-grupo: ListView {
+                    vertical-stretch: 1;
+                    for p in Painel.info-participantes: Rectangle {
+                        height: 52px; border-radius: 8px;
+                        background: linha.has-hover ? Tema.realce : transparent;
+                        animate background { duration: 120ms; }
+                        HorizontalLayout {
+                            padding-left: 6px; padding-right: 8px; spacing: 10px;
+                            VerticalLayout { alignment: center; Avatar { inicial: p.inicial; cor: p.cor; tamanho: 34px; } }
+                            VerticalLayout {
+                                alignment: center; spacing: 1px; horizontal-stretch: 1;
+                                Text { text: p.nome; color: Tema.texto; font-size: 13px; font-weight: 600; overflow: elide; }
+                                if p.detalhe != "": Text { text: p.detalhe; color: Tema.fraco; font-size: 11px; overflow: elide; }
+                            }
+                            if p.admin: VerticalLayout { alignment: center; Rectangle {
+                                height: 20px; width: adm.preferred-width + 14px; border-radius: 10px;
+                                background: Tema.destaque-suave; border-width: 1px; border-color: Tema.destaque.transparentize(55%);
+                                adm := Text { text: "Admin"; color: Tema.destaque; font-size: 10px; font-weight: 700; }
+                            } }
+                        }
+                        linha := TouchArea { }
+                    }
+                }
+                if !Painel.info-grupo: Rectangle { vertical-stretch: 1; }
+            }
+        }
+    }
+}

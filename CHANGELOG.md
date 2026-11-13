@@ -10,6 +10,40 @@ O número da versão segue o padrão `MAIOR.MENOR.CORREÇÃO`: a última parte s
 
 ---
 
+## 2.5.0 — 14/11/2026
+
+### Novidades
+- **ZapHub para Windows:** um programa nativo para Windows 10 e 11 (64 bits), sem navegador, que se conecta ao servidor ZapHub da sua empresa. Precisa do servidor na versão 2.4.0 ou mais nova. Veja [docs/APP-WINDOWS.md](docs/APP-WINDOWS.md).
+  - **Acesso seguro:** no primeiro acesso o programa mostra a impressão digital do servidor para você conferir com o administrador e passa a aceitar só esse servidor. Se a identidade do servidor mudar, a conexão é bloqueada com um alerta. O login aceita a verificação em duas etapas (2FA) e fica guardado com a proteção do Windows.
+  - **Atendimento:** sessões, conversas e mensagens em tempo real, fotos e áudios na conversa, fotos de perfil, painel de informações do contato ou grupo, busca na conversa, nova conversa e aceite dos termos.
+  - **Envio:** texto, arquivos (também colando imagem com Ctrl+V) e mensagens de voz gravadas pelo microfone do computador.
+  - **Ações:** responder citando, reagir, encaminhar, editar, apagar e, no menu da conversa, arquivar, silenciar, fixar e marcar como não lida.
+  - **No dia a dia:** notificações do Windows, ícone perto do relógio, opção de iniciar com o Windows e tela de configurações.
+  - **Arquivos recebidos:** abrem direto só os tipos comuns (PDF, imagens, áudio, vídeo, documentos do Office sem macro); o resto só pode ser salvo. Todo arquivo baixado fica marcado como vindo da internet.
+  - **Instalador próprio:** para todos os usuários (pede administrador) ou só para você (sem administrador), com tela de termos e registro da instalação.
+  - O instalador **não tem assinatura digital paga**. O Windows SmartScreen pode mostrar "O Windows protegeu o computador": clique em **Mais informações** e depois em **Executar assim mesmo**. Publicamos o SHA-256 de cada instalador para você conferir o arquivo (veja o guia).
+- **Editar mensagem enviada (painel e programa):** clique com o botão direito numa mensagem de texto sua e escolha **Editar**. Como no WhatsApp, só vale até 15 minutos depois de enviar; quem recebeu vê a mensagem nova, marcada como editada.
+
+### Correções
+- **Troca de sessão com uma conversa aberta:** o painel abria a mesma conversa na sessão nova, e a mensagem podia sair pelo número errado (o cliente via dois números no mesmo assunto). Agora a troca volta para a lista de conversas; o clique numa notificação de outra sessão continua abrindo a conversa certa daquela sessão.
+- **Edições feitas no celular** passam a aparecer na hora no painel aberto, marcadas como editadas.
+
+---
+
+## 2.4.0 — 13/11/2026
+
+### Novidades
+- **Base para o ZapHub para Windows:** o servidor passa a atender o programa do Windows, que chega na próxima versão, pelas rotas `/api/app/*`. Elas cobrem conversas, mensagens, envio de texto e de mídia, reações, encaminhar, apagar, arquivar, silenciar, fixar, marcar como não lida, contatos, verificação de número, foto e informações do contato ou grupo, e a busca dentro da conversa.
+  - Usam o mesmo login do painel e as mesmas permissões da tela de conversas: cada pessoa só vê e mexe nas sessões a que tem acesso, e as sessões privadas continuam só do dono. A chave de API não vale nessas rotas.
+  - Pedidos que alteram dados vindos de outro site são recusados.
+  - A foto de perfil é buscada pelo próprio servidor; o endereço dela no WhatsApp não chega ao programa.
+
+### Correções
+- **Apagar só para mim:** com a sincronização de estado do WhatsApp desligada (o padrão), apagar uma mensagem recebida não manda mais nenhum comando de sincronização ao WhatsApp. A mensagem some só do ZapHub, e o aviso diz isso.
+- **Mensagens editadas** passam a ficar marcadas como editadas (vale para as edições feitas a partir desta versão).
+
+---
+
 ## 2.3.0 — 12/11/2026
 
 ### Novidades

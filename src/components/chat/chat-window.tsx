@@ -41,6 +41,8 @@ import { ReprodutorVideo } from "./reprodutor-video"; // minha versao: player de
 import { TextoComLinks, PreviaLinkCartao, type PreviaLink } from "./texto-com-links"; // minha versao: links clicaveis + previa
 import { VisualizadorImagem } from "./visualizador-imagem"; // minha versao: zoom nas fotos
 import { EncaminharDialog } from "./encaminhar-dialog"; // minha versao: encaminhar mensagem
+import { EditarMensagemDialog } from "./editar-mensagem-dialog"; // minha versao: editar mensagem enviada
+import { motivoParaNaoEditar } from "@/lib/editar-mensagem";
 import { ChatInfoPanel, formatarTelefone, type Participante } from "./chat-info-panel";
 import { useTranslations } from "next-intl";
 
@@ -400,7 +402,7 @@ interface ContextMenuState {
     y: number;
     msg: Message;
 }
-function ContextMenu({ state, onClose, onReply, onDelete, fixada, onFixar, onEncaminhar }: { state: ContextMenuState; onClose: () => void; onReply: (msg: Message) => void; onDelete: (msg: Message) => void; fixada: boolean; onFixar: (msg: Message, fixar: boolean, dias?: 1 | 7 | 30) => void; onEncaminhar: (msg: Message) => void }) {
+function ContextMenu({ state, onClose, onReply, onDelete, fixada, onFixar, onEncaminhar, onEditar }: { state: ContextMenuState; onClose: () => void; onReply: (msg: Message) => void; onDelete: (msg: Message) => void; fixada: boolean; onFixar: (msg: Message, fixar: boolean, dias?: 1 | 7 | 30) => void; onEncaminhar: (msg: Message) => void; onEditar: (msg: Message) => void }) {
     const t = useTranslations("chat");
     const ref = useRef<HTMLDivElement>(null);
     const [submenu, setSubmenu] = useState(false);
@@ -420,6 +422,10 @@ function ContextMenu({ state, onClose, onReply, onDelete, fixada, onFixar, onEnc
     ] : [
         { label: t("reply"), icon: CornerUpLeft, action: () => { onReply(state.msg); onClose(); } },
         { label: t("copy"), icon: Copy, action: () => { navigator.clipboard.writeText(state.msg.content || "").then(() => toast.success(t("copied"))).catch(() => {}); onClose(); } },
+        // minha versao: editar (so texto proprio, ate 15 min depois de enviar — regra do WhatsApp)
+        ...(motivoParaNaoEditar(state.msg as any) === null
+            ? [{ label: "Editar", icon: PenLine, action: () => { onEditar(state.msg); onClose(); } }]
+            : []),
         // minha versao: encaminhar (texto e midia com arquivo; contato e mensagem apagada ficam de fora)
         ...(state.msg.type !== "CONTACT" && !(state.msg.extra as any)?.apagada && (state.msg.type === "TEXT" || state.msg.mediaUrl)
             ? [{ label: "Encaminhar", icon: Forward, action: () => { onEncaminhar(state.msg); onClose(); } }]
@@ -493,6 +499,7 @@ export function ChatWindow({ sessionId, jid, name, onBack, onOpenChat }: ChatWin
 
     // Delete confirmation
     const [deleteConfirmMsg, setDeleteConfirmMsg] = useState<Message | null>(null);
+    const [editando, setEditando] = useState<Message | null>(null); // minha versao: editar mensagem enviada
 
     // Reply state
     const [replyingTo, setReplyingTo] = useState<Message | null>(null);
@@ -1140,8 +1147,14 @@ export function ChatWindow({ sessionId, jid, name, onBack, onOpenChat }: ChatWin
                             .catch((e: any) => toast.error(e?.message || "Não consegui fixar"));
                     }}
                     onEncaminhar={(msg) => setEncaminhando(msg)}
+                    onEditar={(msg) => setEditando(msg)}
                 />
             )}
+
+            {/* minha versao: editar mensagem de texto enviada */}
+            <EditarMensagemDialog key={editando?.keyId || "nenhuma"} sessionId={sessionId} jid={jid}
+                mensagem={editando ? { keyId: editando.keyId, content: editando.content } : null}
+                onFechar={() => setEditando(null)} />
 
             {/* minha versao: encaminhar mensagem para outras conversas */}
             <EncaminharDialog sessionId={sessionId} keyId={encaminhando?.keyId || null}
@@ -1576,6 +1589,7 @@ export function ChatWindow({ sessionId, jid, name, onBack, onOpenChat }: ChatWin
                                                 {msg.type === 'CONTACT' ? null : <TextoComLinks texto={isGroup ? renderText(semAssinatura(msg)) : semAssinatura(msg)} fromMe={msg.fromMe} />}
                                             </span>
                                             <span className={cn("text-[9px] shrink-0 leading-none flex items-center gap-0.5", msg.fromMe ? "text-primary-foreground/75" : "text-muted-foreground")}>
+                                                {(msg.extra as any)?.editada && !(msg.extra as any)?.apagada && <span className="italic mr-0.5">editada</span>}
                                                 {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                 {msg.fromMe && <Tiques status={msg.status} className={msg.status === "READ" ? "text-primary" : "text-primary-foreground/60"} />}
                                             </span>

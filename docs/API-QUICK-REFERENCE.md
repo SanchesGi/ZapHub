@@ -2,7 +2,7 @@
 
 Quick reference guide for common API operations in ZapHub.
 
-> **ZapHub** 2.3.0 — API base: `https://SEU_SERVIDOR:3443/api`
+> **ZapHub** 2.5.0 — API base: `https://SEU_SERVIDOR:3443/api`
 
 ## Base URL
 
@@ -219,6 +219,22 @@ curl -X POST https://SEU_SERVIDOR:3443/api/status/update \
 
 ---
 
+## Rotas do programa do Windows (/api/app)
+
+O servidor tem rotas `/api/app/*` feitas para o [ZapHub para Windows](./APP-WINDOWS.md). Elas usam o **login do painel** (cookie de sessão, com as mesmas permissões da tela de conversas) e **não** aceitam a chave de API (`X-API-Key`). Para automações, use as rotas das seções acima.
+
+| Método | Rota | O que faz |
+| :--- | :--- | :--- |
+| GET | `/api/app/{sessao}/conversas` | Lista as conversas da sessão |
+| GET | `/api/app/{sessao}/conversas/{jid}/mensagens` | Lista as mensagens de uma conversa |
+| POST | `/api/app/{sessao}/conversas/{jid}/mensagens` | Envia uma mensagem de texto |
+| POST | `/api/app/{sessao}/conversas/{jid}/midia` | Envia foto, arquivo ou voz |
+| POST | `/api/app/{sessao}/conversas/{jid}/lida` | Marca a conversa como lida |
+
+Há outras rotas (reação, encaminhar, busca, estado da conversa, foto, informações, contatos, verificar número): ver código em `src/app/api/app`.
+
+---
+
 ## JID Format
 
 WhatsApp uses JID (Jabber ID) format:
@@ -381,7 +397,7 @@ except Exception as e:
 ---
 
 <div align="center">
-  **ZapHub** 2.3.0
+  **ZapHub** 2.5.0
 </div>
 
 For complete documentation, see [API_DOCUMENTATION.md](./API_DOCUMENTATION.md)

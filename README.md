@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="LICENSE"><img alt="Licença AGPL-3.0" src="https://img.shields.io/badge/licen%C3%A7a-AGPL--3.0-f4a935"></a>
-  <a href="CHANGELOG.md"><img alt="Versão" src="https://img.shields.io/badge/vers%C3%A3o-2.3.0-f4a935"></a>
+  <a href="CHANGELOG.md"><img alt="Versão" src="https://img.shields.io/badge/vers%C3%A3o-2.5.0-f4a935"></a>
   <img alt="Next.js 16" src="https://img.shields.io/badge/Next.js-16-111">
   <img alt="MariaDB" src="https://img.shields.io/badge/MariaDB-MySQL-111">
 </p>
@@ -109,6 +109,10 @@ bash deploy/instalar.sh
 
 O instalador pergunta o nome, o e-mail e a senha do **Super Administrador**, a conta com que você entra no painel. No fim, acesse `https://IP_DO_SERVIDOR:3443` e entre com ela. O guia completo, com banco, HTTPS, domínio, firewall, atualização, backup e problemas comuns, está em **[docs/INSTALACAO.md](docs/INSTALACAO.md)**.
 
+## ZapHub para Windows
+
+Além do painel no navegador, existe um programa nativo para Windows que se conecta ao seu servidor ZapHub. Veja **[docs/APP-WINDOWS.md](docs/APP-WINDOWS.md)**.
+
 ## Documentação
 
 | Documento | Conteúdo |
@@ -118,6 +122,7 @@ O instalador pergunta o nome, o e-mail e a senha do **Super Administrador**, a c
 | [docs/INSTALACAO.md](docs/INSTALACAO.md) | Instalação do zero, HTTPS, atualização, backup e migração |
 | [docs/CONFIGURACAO.md](docs/CONFIGURACAO.md) | Todas as variáveis do `.env` e o que se ajusta pelo painel |
 | [docs/USO.md](docs/USO.md) | Guia do usuário do painel |
+| [docs/APP-WINDOWS.md](docs/APP-WINDOWS.md) | ZapHub para Windows: instalação, primeiro acesso e privacidade |
 | [docs/LGPD.md](docs/LGPD.md) | Guia de LGPD para quem instala |
 | [docs/SEGURANCA.md](docs/SEGURANCA.md) | Proteções aplicadas e o que fica com quem instala |
 | [docs/API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md) | Referência completa da API |

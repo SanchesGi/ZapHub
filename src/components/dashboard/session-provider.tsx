@@ -18,7 +18,8 @@ interface Session {
 interface SessionContextType {
     sessions: Session[];
     sessionId: string;
-    setSessionId: (id: string) => void;
+    /** destino: para onde ir depois de trocar (ex.: a conversa de uma notificacao daquela sessao) */
+    setSessionId: (id: string, destino?: string) => void;
     refreshSessions: () => Promise<void>;
     loading: boolean;
 }
@@ -67,9 +68,24 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         fetchSessions();
     }, []);
 
-    const setSessionId = (id: string) => {
+    const setSessionId = (id: string, destino?: string) => {
+        const mudou = id !== sessionId;
         setSessionIdState(id);
         setCookie("sessionId", id); // Sync Cookie
+        if (destino) {
+            // minha versao: quem chamou ja sabe a conversa certa DESTA sessao (ex.: clique numa notificacao)
+            router.push(destino);
+            return;
+        }
+        // minha versao: trocou de sessao com uma conversa aberta (/dashboard/chat/<numero>) -> volta para a lista.
+        // Antes o refresh reabria o MESMO numero na sessao nova e a mensagem saia pelo numero errado (o cliente via
+        // dois numeros no mesmo assunto).
+        if (mudou && typeof window !== "undefined" && window.location.pathname.startsWith("/dashboard/chat/")) {
+            window.history.replaceState(null, "", "/dashboard/chat");
+            router.replace("/dashboard/chat");
+            router.refresh();
+            return;
+        }
         router.refresh(); // Sync Server Components
     };
 

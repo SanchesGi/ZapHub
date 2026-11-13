@@ -371,7 +371,7 @@ export class ChatService {
      * minha versao: todos os JIDs que representam a mesma conversa (telefone + @lid + alt),
      * para a busca e o "pular ate a mensagem" acharem tudo, igual ao getMessages.
      */
-    private static async jidsDaConversa(dbSessionId: string, jid: string): Promise<string[]> {
+    static async jidsDaConversa(dbSessionId: string, jid: string): Promise<string[]> {
         const normalizedJid = normalizeJid(jid);
         const contact = await prisma.contact.findFirst({
             where: { sessionId: dbSessionId, OR: [{ jid }, { lid: jid }, { remoteJidAlt: jid }, { jid: normalizedJid }] },
@@ -550,6 +550,39 @@ export class ChatService {
      * minha versao: reagir a uma mensagem com emoji (emoji "" = remover a reacao).
      * A chave e montada como na citacao (sendTextMessage): em grupo, o participant e quem enviou.
      */
+    /**
+     * minha versao: edita uma mensagem de texto enviada pela sessao. A mensagem precisa ser desta sessao e (se
+     * informado) de uma das conversas em `jids`; a regra (propria, texto, ate 15 min, nao apagada) fica em
+     * lib/editar-mensagem. Atualiza o banco e avisa as telas na hora (o eco do WhatsApp atualiza de novo, igual).
+     */
+    static async editar(sessionId: string, keyId: string, texto: string, jids?: string[]) {
+        const instance = waManager.getInstance(sessionId);
+        if (!instance || !instance.socket) throw new Error("A sessão do WhatsApp está desconectada");
+        const dbSession = await prisma.session.findUnique({ where: { sessionId }, select: { id: true } });
+        if (!dbSession) throw new Error("Sessão não encontrada");
+        const alvo = await prisma.message.findFirst({
+            where: { sessionId: dbSession.id, keyId, ...(jids ? { remoteJid: { in: jids } } : {}) },
+            select: { id: true, keyId: true, remoteJid: true, fromMe: true, type: true, timestamp: true, extra: true },
+        });
+        if (!alvo) throw new Error("Mensagem não encontrada");
+        const { motivoParaNaoEditar } = await import("@/lib/editar-mensagem");
+        const motivo = motivoParaNaoEditar(alvo);
+        if (motivo) throw new Error(motivo);
+        await instance.socket.sendMessage(alvo.remoteJid, {
+            text: texto,
+            edit: { remoteJid: alvo.remoteJid, id: alvo.keyId, fromMe: true },
+        });
+        const extra = { ...((alvo.extra as Record<string, unknown> | null) || {}), editada: true };
+        const atualizada = await prisma.message.update({ where: { id: alvo.id }, data: { content: texto, extra: extra as any } });
+        (global as any).io?.to(sessionId).emit("message.update", [{
+            ...atualizada,
+            sessionKey: sessionId,
+            live: false,
+            timestamp: atualizada.timestamp instanceof Date ? atualizada.timestamp.toISOString() : atualizada.timestamp,
+        }]);
+        return atualizada;
+    }
+
     static async reagir(sessionId: string, keyId: string, emoji: string) {
         const instance = waManager.getInstance(sessionId);
         if (!instance || !instance.socket) throw new Error("A sessão do WhatsApp está desconectada");

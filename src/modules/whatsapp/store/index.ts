@@ -613,7 +613,7 @@ async function processAndSaveMessage(
                 // minha versao: so edita se quem pediu e o autor da mensagem alvo, no mesmo chat
                 const alvoSalvo = await prisma.message.findUnique({
                     where: { sessionId_keyId: { sessionId: dbSessionId, keyId: targetKeyId } },
-                    select: { id: true, remoteJid: true, fromMe: true, senderJid: true },
+                    select: { id: true, remoteJid: true, fromMe: true, senderJid: true, extra: true },
                 });
                 const quemJid = remoteJid.endsWith("@g.us") ? (msg.key.participant || (msg as any).participant || null) : remoteJid;
                 const pedido = alvoSalvo ? await montarPedido(dbSessionId, {
@@ -625,10 +625,18 @@ async function processAndSaveMessage(
                 }
 
                 // Update DB safely
-                await prisma.message.update({
+                const editada = await prisma.message.update({
                     where: { id: alvoSalvo.id },
-                    data: { content: newText } // Note: we don't update timestamp of original
+                    // minha versao: extra.editada = true (o programa do Windows mostra "editada")
+                    data: { content: newText, extra: { ...((alvoSalvo.extra as Record<string, unknown> | null) || {}), editada: true } as any } // Note: we don't update timestamp of original
                 });
+                // minha versao: edicao feita no celular (ou em outro painel) aparece na hora nas telas abertas
+                (global as any).io?.to(sessionId).emit("message.update", [{
+                    ...editada,
+                    sessionKey: sessionId,
+                    live: false,
+                    timestamp: editada.timestamp instanceof Date ? editada.timestamp.toISOString() : editada.timestamp,
+                }]);
 
                 // Trigger Webhook
                 if (triggerWebhook) {

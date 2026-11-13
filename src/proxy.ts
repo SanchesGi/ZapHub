@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { validateApiKey } from "@/lib/api-auth";
 import { origemReal } from "@/auth.config";
 import { VERSAO_TERMOS } from "@/lib/termos";
+import { origemPermitida } from "@/lib/app-desktop-puro";
 import { bloqueadaNaDemo, MENSAGEM_DEMO } from "@/lib/demo";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
@@ -10,6 +11,19 @@ import type { NextRequest } from "next/server";
 // Liberado mesmo sem aceite: o proprio aceite (/api/me/termos), a leitura da config publica do sistema e /api/auth/*.
 function termosPendentes(session: { user?: { termosVersao?: string | null } } | null): boolean {
     return (session?.user?.termosVersao ?? null) !== VERSAO_TERMOS;
+}
+
+// minha versao: /api/app/* (programa do Windows) usa o cookie da sessao; pedido que muda coisa vindo de outra
+// origem do navegador (CSRF same-site, texto puro) e recusado. Pedido sem Origin/Sec-Fetch-Site passa.
+function bloqueioOrigemApp(request: NextRequest, pathname: string): NextResponse | null {
+    if (!pathname.startsWith("/api/app/")) return null;
+    const permitida = origemPermitida({
+        metodo: request.method,
+        secFetchSite: request.headers.get("sec-fetch-site"),
+        origin: request.headers.get("origin"),
+        origemReal: origemReal(request, request.nextUrl),
+    });
+    return permitida ? null : NextResponse.json({ ok: false, erro: "Origem não permitida" }, { status: 403 });
 }
 
 export async function proxy(request: NextRequest) {
@@ -48,6 +62,9 @@ export async function proxy(request: NextRequest) {
         if (pathname.startsWith("/api/auth")) {
             return NextResponse.next();
         }
+
+        const bloqueioApp = bloqueioOrigemApp(request, pathname);
+        if (bloqueioApp) return bloqueioApp;
 
         // Check for API key in header
         const apiKey = request.headers.get("x-api-key");

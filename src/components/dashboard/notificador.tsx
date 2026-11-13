@@ -199,8 +199,7 @@ export function Notificador() {
         try { window.focus(); } catch { /* ignora */ }
         const destino = `/dashboard/chat/${urlDoJid(it.jid)}`;
         if (it.sessionId !== sessaoAtual) {
-            setSessionId(it.sessionId);
-            router.push(destino);
+            setSessionId(it.sessionId, destino); // troca e abre a conversa certa desta sessao
             return;
         }
         // ja na tela de conversas: troca a conversa na hora; senao (ou se ninguem atendeu) navega

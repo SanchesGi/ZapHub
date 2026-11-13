@@ -1,0 +1,624 @@
+// Acoes na mensagem do ZapHub para Windows: menu de contexto, reacoes, resposta com citacao, encaminhar,
+// apagar para todos e busca dentro da conversa. O estado vive no global Acoes (o Rust fala com ele por
+// ui.global::<Acoes>()); os componentes abaixo so desenham.
+import { Tema, Icone, BotaoIcone, Botao } from "base.slint";
+import { Spinner, ListView } from "std-widgets.slint";
+
+export struct ReacaoItem {
+    emoji: string,
+    quantidade: int,
+    minha: bool,
+}
+
+export struct DestinoItem {
+    jid: string,
+    nome: string,
+    inicial: string,
+    cor: int,
+    grupo: bool,
+    marcado: bool,
+}
+
+export struct ResultadoBusca {
+    id: string,
+    texto: string,
+    quando: string,
+    autor: string,
+}
+
+export global Acoes {
+    // seis reacoes rapidas
+    out property <[string]> emojis: ["👍", "❤️", "😂", "😮", "😢", "🙏"];
+
+    // responder: a faixa acima do compositor
+    in-out property <string> resp-id;
+    in-out property <string> resp-autor;
+    in-out property <string> resp-texto;
+
+    // editar: a faixa "Editando mensagem" acima do compositor
+    in-out property <string> edit-id;
+    in-out property <string> edit-texto;
+
+    // mensagem em destaque (clique numa citacao ou num resultado da busca)
+    in-out property <string> alvo-id;
+    in-out property <bool> alvo-pendente;
+    in-out property <int> alvo-indice;
+    in-out property <int> alvo-tentativas;
+    in-out property <bool> localizando;
+    // aviso neutro e curto (ex.: "Texto copiado")
+    in-out property <string> aviso-leve;
+    in-out property <string> aviso-ultimo;
+
+    // menu da mensagem
+    in-out property <bool> menu-aberto;
+    in-out property <string> menu-id;
+    in-out property <bool> menu-minha;
+    in-out property <bool> menu-texto;
+    in-out property <bool> menu-midia;
+    in-out property <length> menu-x;
+    in-out property <length> menu-y;
+
+    // confirmar "apagar para todos"
+    in-out property <string> apagar-id;
+    in-out property <bool> apagar-minha;
+
+    // encaminhar
+    in-out property <bool> enc-aberto;
+    in-out property <string> enc-busca;
+    in-out property <[DestinoItem]> destinos;
+    in-out property <int> enc-marcados;
+    in-out property <bool> enc-enviando;
+
+    // busca na conversa
+    in-out property <bool> busca-aberta;
+    in-out property <string> busca-texto;
+    in-out property <[ResultadoBusca]> busca-resultados;
+    in-out property <bool> busca-carregando;
+    in-out property <bool> busca-tem-mais;
+    in-out property <bool> busca-feita;
+    in-out property <int> busca-total;
+    in-out property <string> busca-erro;
+
+    // tela -> Rust
+    callback responder(string);
+    callback cancelar-resposta();
+    callback editar(string);
+    callback cancelar-edicao();
+    callback reagir(string, string);
+    callback copiar(string);
+    callback salvar-midia(string);
+    callback apagar(string);
+    callback encaminhar-abrir(string);
+    callback encaminhar-fechar();
+    callback destino-buscar(string);
+    callback destino-alternar(string);
+    callback encaminhar-enviar();
+    callback ir-para(string);
+    callback busca-digitada(string);
+    callback busca-mais();
+    callback busca-fechou();
+
+    public function abrir-menu(p-id: string, p-minha: bool, p-texto: bool, p-midia: bool, p-x: length, p-y: length) {
+        menu-id = p-id;
+        menu-minha = p-minha;
+        menu-texto = p-texto;
+        menu-midia = p-midia;
+        menu-x = p-x;
+        menu-y = p-y;
+        menu-aberto = true;
+    }
+    public function fechar-menu() {
+        menu-aberto = false;
+    }
+    public function pedir-apagar(p-id: string, p-minha: bool) {
+        apagar-minha = p-minha;
+        apagar-id = p-id;
+    }
+    public function pedir-encaminhar(p-id: string) {
+        enc-aberto = true;
+        enc-busca = "";
+        encaminhar-abrir(p-id);
+    }
+    public function alternar-busca() {
+        busca-aberta = !busca-aberta;
+        if (!busca-aberta) {
+            busca-fechou();
+        }
+    }
+}
+
+// ---------- pecas do balao ----------
+
+// citacao dentro do balao: barra ambar, autor e trecho
+export component CitacaoBloco inherits Rectangle {
+    in property <string> autor;
+    in property <string> texto;
+    in property <bool> minha-msg;
+    callback clicado();
+    height: col.preferred-height;
+    min-width: 170px;
+    border-radius: 6px;
+    background: toque.has-hover ? (root.minha-msg ? #00000045 : #FFFFFF14) : (root.minha-msg ? #00000030 : #FFFFFF0C);
+    animate background { duration: 140ms; }
+    Rectangle {
+        x: 0; y: 0; width: 4px; height: parent.height;
+        background: Tema.destaque;
+        border-top-left-radius: 6px; border-bottom-left-radius: 6px;
+    }
+    col := VerticalLayout {
+        padding-left: 12px; padding-right: 10px; padding-top: 5px; padding-bottom: 5px;
+        spacing: 1px;
+        Text { text: root.autor; color: Tema.destaque; font-size: 12px; font-weight: 700; overflow: elide; }
+        Text { text: root.texto; color: Tema.apagado; font-size: 13px; overflow: elide; }
+    }
+    toque := TouchArea { mouse-cursor: pointer; clicked => { root.clicado(); } }
+}
+
+// reacao embaixo do balao: emoji e contagem
+export component ChipReacao inherits Rectangle {
+    in property <ReacaoItem> r;
+    callback clicado();
+    height: 24px;
+    width: miolo.preferred-width + 16px;
+    border-radius: 12px;
+    background: r.minha ? Tema.destaque-suave : toque.has-hover ? Tema.realce : Tema.elevado;
+    border-width: 1px;
+    border-color: r.minha ? Tema.destaque.transparentize(50%) : Tema.borda;
+    animate background, border-color { duration: 140ms; }
+    miolo := HorizontalLayout {
+        alignment: center; spacing: 4px;
+        Text { text: r.emoji; font-size: 13px; vertical-alignment: center; }
+        if r.quantidade > 1: Text { text: r.quantidade; color: r.minha ? Tema.destaque : Tema.apagado; font-size: 11px; font-weight: 700; vertical-alignment: center; }
+    }
+    toque := TouchArea { mouse-cursor: pointer; clicked => { root.clicado(); } }
+}
+
+// botao "..." que aparece no canto do balao quando o mouse passa
+export component BotaoMais inherits Rectangle {
+    in property <bool> visivel-ao-passar;
+    in property <bool> minha-msg;
+    callback abrir(length, length);
+    width: 26px; height: 26px; border-radius: 13px;
+    opacity: root.visivel-ao-passar || toque.has-hover ? 1 : 0;
+    visible: self.opacity > 0.01;
+    animate opacity { duration: 140ms; }
+    background: toque.has-hover ? Tema.realce : (root.minha-msg ? Tema.minha : Tema.outra);
+    border-width: 1px; border-color: Tema.borda;
+    Icone { source: @image-url("icones/acao-mais.svg"); cor: toque.has-hover ? Tema.texto : Tema.apagado; width: 16px; height: 16px; }
+    toque := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.abrir(self.absolute-position.x, self.absolute-position.y + root.height + 4px); }
+    }
+}
+
+// ---------- menu de contexto ----------
+component ItemMenu inherits Rectangle {
+    in property <image> icone;
+    in property <string> texto;
+    in property <bool> perigo;
+    callback clicado();
+    height: 38px;
+    border-radius: 8px;
+    background: toque.pressed ? Tema.realce.brighter(12%) : toque.has-hover ? Tema.realce : transparent;
+    animate background { duration: 120ms; }
+    HorizontalLayout {
+        padding-left: 12px; padding-right: 12px; spacing: 12px;
+        VerticalLayout {
+            alignment: center;
+            Icone { source: root.icone; cor: root.perigo ? Tema.erro : toque.has-hover ? Tema.destaque : Tema.apagado; width: 17px; height: 17px; }
+        }
+        Text { text: root.texto; color: root.perigo ? #F3B2B4 : Tema.texto; vertical-alignment: center; font-size: 14px; }
+    }
+    toque := TouchArea { mouse-cursor: pointer; clicked => { root.clicado(); } }
+}
+
+component TiraReacoes inherits HorizontalLayout {
+    padding: 4px; spacing: 2px;
+    alignment: center;
+    for e in Acoes.emojis: Rectangle {
+        width: 38px; height: 38px; border-radius: 19px;
+        background: toque.has-hover ? Tema.realce : transparent;
+        animate background { duration: 120ms; }
+        Text {
+            text: e; horizontal-alignment: center; vertical-alignment: center;
+            font-size: toque.has-hover ? 24px : 20px;
+            animate font-size { duration: 120ms; easing: ease-out; }
+        }
+        toque := TouchArea {
+            mouse-cursor: pointer;
+            clicked => { Acoes.reagir(Acoes.menu-id, e); Acoes.fechar-menu(); }
+        }
+    }
+}
+
+component MenuMensagem inherits Rectangle {
+    property <float> entrada: 0;
+    init => { entrada = 1; fs.focus(); }
+    fs := FocusScope {
+        capture-key-pressed(ev) => {
+            if (ev.text == Key.Escape) { Acoes.fechar-menu(); return accept; }
+            return reject;
+        }
+        // clicar fora (com qualquer botao) fecha
+        TouchArea {
+            pointer-event(ev) => { if (ev.kind == PointerEventKind.down) { Acoes.fechar-menu(); } }
+        }
+        cartao := Rectangle {
+            width: 248px;
+            height: col.preferred-height;
+            x: max(8px, min(Acoes.menu-x, root.width - self.width - 8px));
+            y: max(8px, min(Acoes.menu-y, root.height - self.height - 8px)) + (1 - root.entrada) * 8px;
+            opacity: root.entrada;
+            animate opacity { duration: 140ms; easing: ease-out; }
+            animate y { duration: 160ms; easing: ease-out; }
+            background: Tema.elevado;
+            border-radius: 12px; border-width: 1px; border-color: Tema.borda;
+            drop-shadow-blur: 24px; drop-shadow-color: #000000A0; drop-shadow-offset-y: 6px;
+            TouchArea { }
+            col := VerticalLayout {
+                padding: 6px; spacing: 2px;
+                TiraReacoes { }
+                Rectangle { height: 1px; background: Tema.borda; }
+                ItemMenu { icone: @image-url("icones/acao-responder.svg"); texto: "Responder"; clicado => { Acoes.responder(Acoes.menu-id); Acoes.fechar-menu(); } }
+                if Acoes.menu-texto: ItemMenu { icone: @image-url("icones/acao-copiar.svg"); texto: "Copiar texto"; clicado => { Acoes.copiar(Acoes.menu-id); Acoes.fechar-menu(); } }
+                if Acoes.menu-minha && Acoes.menu-texto && !Acoes.menu-midia: ItemMenu { icone: @image-url("icones/assinar.svg"); texto: "Editar"; clicado => { Acoes.editar(Acoes.menu-id); Acoes.fechar-menu(); } }
+                ItemMenu { icone: @image-url("icones/acao-encaminhar.svg"); texto: "Encaminhar"; clicado => { Acoes.fechar-menu(); Acoes.pedir-encaminhar(Acoes.menu-id); } }
+                if Acoes.menu-midia: ItemMenu { icone: @image-url("icones/baixar.svg"); texto: "Salvar mídia"; clicado => { Acoes.salvar-midia(Acoes.menu-id); Acoes.fechar-menu(); } }
+                ItemMenu { icone: @image-url("icones/lixeira.svg"); texto: Acoes.menu-minha ? "Apagar para todos" : "Apagar"; perigo: true; clicado => { Acoes.fechar-menu(); Acoes.pedir-apagar(Acoes.menu-id, Acoes.menu-minha); } }
+            }
+        }
+    }
+}
+
+// ---------- dialogos ----------
+component Dialogo inherits Rectangle {
+    in property <string> titulo;
+    in property <length> largura: 440px;
+    callback fechar();
+    property <float> entrada: 0;
+    init => { entrada = 1; fs.focus(); }
+    fs := FocusScope {
+        capture-key-pressed(ev) => {
+            if (ev.text == Key.Escape) { root.fechar(); return accept; }
+            return reject;
+        }
+        Rectangle {
+            background: #000000B8;
+            opacity: root.entrada;
+            animate opacity { duration: 180ms; }
+            TouchArea { clicked => { root.fechar(); } }
+        }
+        cartao := Rectangle {
+            width: min(root.largura, root.width - 32px);
+            height: col.preferred-height;
+            x: (root.width - self.width) / 2;
+            y: (root.height - self.height) / 2 + (1 - root.entrada) * 14px;
+            opacity: root.entrada;
+            animate opacity { duration: 180ms; easing: ease-out; }
+            animate y { duration: 220ms; easing: ease-out; }
+            background: Tema.cartao;
+            border-radius: 14px; border-width: 1px; border-color: Tema.borda;
+            drop-shadow-blur: 32px; drop-shadow-color: #000000C0; drop-shadow-offset-y: 8px;
+            TouchArea { }
+            col := VerticalLayout {
+                padding: 20px; spacing: 14px;
+                Text { text: root.titulo; color: Tema.texto; font-size: 18px; font-weight: 700; }
+                @children
+            }
+        }
+    }
+}
+
+component BotaoPerigo inherits Rectangle {
+    in property <string> texto;
+    callback clicado();
+    height: 40px; min-width: 110px; border-radius: 8px;
+    background: toque.pressed ? Tema.erro.darker(20%) : toque.has-hover ? Tema.erro.brighter(10%) : Tema.erro;
+    animate background { duration: 140ms; }
+    Text { text: root.texto; color: #FFFFFF; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
+    toque := TouchArea { mouse-cursor: pointer; clicked => { root.clicado(); } }
+}
+
+component DialogoApagar inherits Dialogo {
+    titulo: Acoes.apagar-minha ? "Apagar para todos?" : "Apagar mensagem?";
+    fechar => { Acoes.apagar-id = ""; }
+    Text {
+        text: Acoes.apagar-minha
+            ? "A mensagem some da conversa para todos, inclusive para quem a recebeu. Isso não pode ser desfeito. Se já passou muito tempo, o WhatsApp pode recusar."
+            : "Se não for possível apagar para todos, a mensagem some só para você. O programa avisa o que aconteceu.";
+        color: Tema.apagado; wrap: word-wrap;
+    }
+    HorizontalLayout {
+        alignment: end; spacing: 10px;
+        Botao { texto: "Cancelar"; principal: false; clicado => { Acoes.apagar-id = ""; } }
+        BotaoPerigo { texto: Acoes.apagar-minha ? "Apagar para todos" : "Apagar"; clicado => { Acoes.apagar(Acoes.apagar-id); Acoes.apagar-id = ""; } }
+    }
+}
+
+component DialogoEncaminhar inherits Dialogo {
+    titulo: "Encaminhar mensagem";
+    largura: 480px;
+    fechar => { Acoes.encaminhar-fechar(); }
+    Rectangle {
+        height: 42px; border-radius: 21px; background: Tema.campo;
+        border-width: 1px; border-color: busca-in.has-focus ? Tema.destaque.transparentize(40%) : Tema.borda;
+        animate border-color { duration: 160ms; }
+        HorizontalLayout {
+            padding-left: 14px; padding-right: 14px; spacing: 10px;
+            VerticalLayout { alignment: center; Icone { source: @image-url("icones/busca.svg"); width: 16px; height: 16px; cor: Tema.fraco; } }
+            Rectangle {
+                busca-in := TextInput {
+                    y: (parent.height - self.height) / 2;
+                    text <=> Acoes.enc-busca;
+                    color: Tema.texto; single-line: true;
+                    selection-background-color: #F4A93555;
+                    enabled: !Acoes.enc-enviando;
+                    init => { self.focus(); }
+                    edited => { Acoes.destino-buscar(self.text); }
+                }
+                if Acoes.enc-busca == "": Text { x: 0; text: "Buscar conversa"; color: Tema.fraco; vertical-alignment: center; height: parent.height; }
+            }
+        }
+    }
+    Rectangle {
+        height: 300px;
+        ListView {
+            for d in Acoes.destinos: Rectangle {
+                height: 56px; border-radius: 10px;
+                background: d.marcado ? Tema.destaque-suave : toque.has-hover ? Tema.realce : transparent;
+                animate background { duration: 140ms; }
+                HorizontalLayout {
+                    padding-left: 10px; padding-right: 12px; spacing: 12px;
+                    VerticalLayout {
+                        alignment: center;
+                        Rectangle {
+                            width: 38px; height: 38px; border-radius: 19px;
+                            background: Tema.pessoas[Math.mod(d.cor, 10)].transparentize(78%);
+                            if !d.grupo: Text { text: d.inicial; color: Tema.pessoas[Math.mod(d.cor, 10)]; font-weight: 700; font-size: 15px; }
+                            if d.grupo: Icone { source: @image-url("icones/grupo.svg"); cor: Tema.pessoas[Math.mod(d.cor, 10)]; width: 18px; height: 18px; }
+                        }
+                    }
+                    Text { text: d.nome; color: Tema.texto; font-size: 14px; overflow: elide; vertical-alignment: center; horizontal-stretch: 1; }
+                    VerticalLayout {
+                        alignment: center;
+                        Rectangle {
+                            width: 22px; height: 22px; border-radius: 11px;
+                            border-width: 2px; border-color: d.marcado ? Tema.destaque : Tema.borda;
+                            background: d.marcado ? Tema.destaque : transparent;
+                            animate background, border-color { duration: 140ms; }
+                            if d.marcado: Icone { source: @image-url("icones/tique.svg"); cor: Tema.sobre-destaque; width: 14px; height: 14px; }
+                        }
+                    }
+                }
+                toque := TouchArea { mouse-cursor: pointer; clicked => { Acoes.destino-alternar(d.jid); } }
+            }
+        }
+        if Acoes.destinos.length == 0: Text {
+            text: "Nenhuma conversa encontrada."; color: Tema.apagado;
+            horizontal-alignment: center; vertical-alignment: center;
+        }
+    }
+    HorizontalLayout {
+        spacing: 10px;
+        Text {
+            text: Acoes.enc-marcados == 0 ? "Escolha até 5 conversas." : Acoes.enc-marcados == 1 ? "1 conversa escolhida (máximo 5)." : Acoes.enc-marcados + " conversas escolhidas (máximo 5).";
+            color: Tema.apagado; font-size: 12px; vertical-alignment: center; horizontal-stretch: 1;
+        }
+        Botao { texto: "Cancelar"; principal: false; ativo: !Acoes.enc-enviando; clicado => { Acoes.encaminhar-fechar(); } }
+        Botao {
+            texto: Acoes.enc-enviando ? "Enviando" : "Encaminhar";
+            ocupado: Acoes.enc-enviando;
+            ativo: Acoes.enc-marcados > 0 && !Acoes.enc-enviando;
+            clicado => { Acoes.encaminhar-enviar(); }
+        }
+    }
+}
+
+// ---------- faixa de edicao (acima do compositor): Enter salva o texto novo na mensagem ----------
+export component FaixaEdicao inherits Rectangle {
+    property <float> entrada: 0;
+    init => { entrada = 1; }
+    animate entrada { duration: 200ms; easing: ease-out; }
+    height: 62px * entrada;
+    clip: true;
+    background: Tema.fundo;
+    HorizontalLayout {
+        padding-left: 20px; padding-right: 20px; padding-top: 10px;
+        Rectangle {
+            height: 52px; border-radius: 10px;
+            background: Tema.cartao; border-width: 1px; border-color: Tema.destaque.transparentize(55%);
+            Rectangle {
+                x: 0; y: 0; width: 4px; height: parent.height;
+                background: Tema.destaque;
+                border-top-left-radius: 10px; border-bottom-left-radius: 10px;
+            }
+            HorizontalLayout {
+                padding-left: 16px; padding-right: 6px; spacing: 8px;
+                VerticalLayout { alignment: center; Icone { source: @image-url("icones/assinar.svg"); cor: Tema.destaque; width: 16px; height: 16px; } }
+                VerticalLayout {
+                    alignment: center; spacing: 2px; horizontal-stretch: 1;
+                    Text { text: "Editando mensagem · Enter salva"; color: Tema.destaque; font-size: 12px; font-weight: 700; overflow: elide; }
+                    Text { text: Acoes.edit-texto; color: Tema.apagado; font-size: 13px; overflow: elide; }
+                }
+                VerticalLayout { alignment: center; BotaoIcone { icone: @image-url("icones/fechar.svg"); tamanho: 30px; dica: "Cancelar edição"; clicado => { Acoes.cancelar-edicao(); } } }
+            }
+        }
+    }
+}
+
+// ---------- faixa de resposta (acima do compositor) ----------
+export component FaixaResposta inherits Rectangle {
+    property <float> entrada: 0;
+    init => { entrada = 1; }
+    animate entrada { duration: 200ms; easing: ease-out; }
+    height: 62px * entrada;
+    clip: true;
+    background: Tema.fundo;
+    HorizontalLayout {
+        padding-left: 20px; padding-right: 20px; padding-top: 10px;
+        Rectangle {
+            height: 52px; border-radius: 10px;
+            background: Tema.cartao; border-width: 1px; border-color: Tema.borda;
+            Rectangle {
+                x: 0; y: 0; width: 4px; height: parent.height;
+                background: Tema.destaque;
+                border-top-left-radius: 10px; border-bottom-left-radius: 10px;
+            }
+            HorizontalLayout {
+                padding-left: 16px; padding-right: 6px; spacing: 8px;
+                VerticalLayout {
+                    alignment: center; spacing: 2px; horizontal-stretch: 1;
+                    Text { text: "Respondendo a " + Acoes.resp-autor; color: Tema.destaque; font-size: 12px; font-weight: 700; overflow: elide; }
+                    Text { text: Acoes.resp-texto; color: Tema.apagado; font-size: 13px; overflow: elide; }
+                }
+                VerticalLayout { alignment: center; BotaoIcone { icone: @image-url("icones/fechar.svg"); tamanho: 30px; dica: "Cancelar resposta"; clicado => { Acoes.cancelar-resposta(); } } }
+            }
+        }
+    }
+}
+
+// ---------- busca dentro da conversa ----------
+export component PainelBusca inherits Rectangle {
+    height: col.preferred-height;
+    background: Tema.lateral;
+    property <float> entrada: 0;
+    init => { entrada = 1; entrada-texto.focus(); }
+    opacity: entrada;
+    animate opacity { duration: 180ms; }
+    FocusScope {
+        capture-key-pressed(ev) => {
+            if (ev.text == Key.Escape) { Acoes.alternar-busca(); return accept; }
+            return reject;
+        }
+        col := VerticalLayout {
+            Rectangle {
+                height: 56px;
+                HorizontalLayout {
+                    padding-left: 16px; padding-right: 12px; padding-top: 8px; padding-bottom: 8px; spacing: 10px;
+                    Rectangle {
+                        border-radius: 20px; background: Tema.campo;
+                        border-width: 1px; border-color: entrada-texto.has-focus ? Tema.destaque.transparentize(40%) : Tema.borda;
+                        animate border-color { duration: 160ms; }
+                        HorizontalLayout {
+                            padding-left: 14px; padding-right: 8px; spacing: 10px;
+                            VerticalLayout { alignment: center; Icone { source: @image-url("icones/busca.svg"); width: 16px; height: 16px; cor: Tema.fraco; } }
+                            Rectangle {
+                                entrada-texto := TextInput {
+                                    y: (parent.height - self.height) / 2;
+                                    text <=> Acoes.busca-texto;
+                                    color: Tema.texto; single-line: true;
+                                    selection-background-color: #F4A93555;
+                                    edited => { Acoes.busca-digitada(self.text); }
+                                    accepted => { Acoes.busca-digitada(self.text); }
+                                }
+                                if Acoes.busca-texto == "": Text { x: 0; text: "Buscar nesta conversa"; color: Tema.fraco; vertical-alignment: center; height: parent.height; }
+                            }
+                            if Acoes.busca-carregando: VerticalLayout { alignment: center; Spinner { width: 16px; height: 16px; indeterminate: true; } }
+                        }
+                    }
+                    VerticalLayout { alignment: center; BotaoIcone { icone: @image-url("icones/fechar.svg"); tamanho: 32px; dica: "Fechar busca"; clicado => { Acoes.alternar-busca(); } } }
+                }
+            }
+            if Acoes.busca-erro != "": Text { text: Acoes.busca-erro; color: #F3B2B4; font-size: 12px; wrap: word-wrap; x: 0; }
+            if Acoes.busca-erro == "" && Acoes.busca-feita && Acoes.busca-resultados.length == 0 && !Acoes.busca-carregando: Rectangle {
+                height: 40px;
+                Text { text: "Nenhuma mensagem encontrada."; color: Tema.apagado; font-size: 13px; horizontal-alignment: center; vertical-alignment: center; }
+            }
+            if Acoes.busca-resultados.length > 0: Rectangle {
+                height: 30px;
+                HorizontalLayout {
+                    padding-left: 20px; padding-right: 16px; spacing: 10px;
+                    Text {
+                        text: Acoes.busca-total == 1 ? "1 resultado" : Acoes.busca-total + " resultados";
+                        color: Tema.fraco; font-size: 11px; font-weight: 700; vertical-alignment: center; horizontal-stretch: 1;
+                    }
+                    if Acoes.busca-tem-mais: Rectangle {
+                        width: mais-t.preferred-width + 8px;
+                        mais-t := Text { text: "Ver mais"; color: Tema.destaque; font-size: 12px; font-weight: 600; vertical-alignment: center; }
+                        TouchArea { mouse-cursor: pointer; clicked => { Acoes.busca-mais(); } }
+                    }
+                }
+            }
+            if Acoes.busca-resultados.length > 0: Rectangle {
+                height: min(264px, Acoes.busca-resultados.length * 66px);
+                ListView {
+                    for r in Acoes.busca-resultados: Rectangle {
+                        height: 66px;
+                        background: toque.has-hover ? Tema.realce : transparent;
+                        animate background { duration: 140ms; }
+                        VerticalLayout {
+                            padding-left: 20px; padding-right: 20px; padding-top: 8px; padding-bottom: 8px; spacing: 3px;
+                            HorizontalLayout {
+                                spacing: 8px;
+                                Text { text: r.autor; color: Tema.destaque; font-size: 12px; font-weight: 700; overflow: elide; horizontal-stretch: 1; }
+                                Text { text: r.quando; color: Tema.fraco; font-size: 11px; }
+                            }
+                            Text { text: r.texto; color: Tema.texto; font-size: 13px; wrap: word-wrap; overflow: elide; }
+                        }
+                        toque := TouchArea { mouse-cursor: pointer; clicked => { Acoes.ir-para(r.id); } }
+                    }
+                }
+            }
+            Rectangle { height: 1px; background: Tema.borda; }
+        }
+    }
+}
+
+// ---------- camada por cima da conversa ----------
+export component CamadaAcoes inherits Rectangle {
+    // rolagem estimada ate a mensagem alvo (a tela da conversa sabe rolar a lista)
+    callback rolar-estimado();
+
+    // tentativas de achar o balao alvo: se ele ainda nao foi desenhado, rola por estimativa
+    Timer {
+        interval: 320ms;
+        running: Acoes.alvo-pendente;
+        triggered => {
+            Acoes.alvo-tentativas += 1;
+            if (Acoes.alvo-tentativas > 10) {
+                Acoes.alvo-pendente = false;
+            } else {
+                root.rolar-estimado();
+            }
+        }
+    }
+
+    if Acoes.menu-aberto: MenuMensagem { }
+    if Acoes.apagar-id != "": DialogoApagar { }
+    if Acoes.enc-aberto: DialogoEncaminhar { }
+
+    // procurando uma mensagem antiga
+    Rectangle {
+        width: loc-l.preferred-width + 36px; height: 36px; border-radius: 18px;
+        x: (root.width - self.width) / 2;
+        y: Acoes.localizando ? 86px : 60px;
+        opacity: Acoes.localizando ? 1 : 0;
+        visible: self.opacity > 0.01;
+        animate y { duration: 220ms; easing: ease-out; }
+        animate opacity { duration: 180ms; }
+        background: Tema.elevado; border-width: 1px; border-color: Tema.borda;
+        drop-shadow-blur: 14px; drop-shadow-color: #00000080;
+        loc-l := HorizontalLayout {
+            alignment: center; spacing: 8px; padding-left: 14px; padding-right: 14px;
+            VerticalLayout { alignment: center; Spinner { width: 14px; height: 14px; indeterminate: true; } }
+            Text { text: "Procurando a mensagem"; color: Tema.texto; font-size: 13px; vertical-alignment: center; }
+        }
+    }
+
+    // aviso curto e neutro
+    Rectangle {
+        width: aviso-l.preferred-width + 8px; height: 36px; border-radius: 18px;
+        x: (root.width - self.width) / 2;
+        y: Acoes.aviso-leve != "" ? root.height - 120px : root.height - 100px;
+        opacity: Acoes.aviso-leve != "" ? 1 : 0;
+        visible: self.opacity > 0.01;
+        animate y { duration: 220ms; easing: ease-out; }
+        animate opacity { duration: 200ms; }
+        background: Tema.elevado; border-width: 1px; border-color: Tema.borda;
+        drop-shadow-blur: 14px; drop-shadow-color: #00000080;
+        aviso-l := HorizontalLayout {
+            alignment: center; padding-left: 18px; padding-right: 18px;
+            Text { text: Acoes.aviso-ultimo; color: Tema.texto; font-size: 13px; vertical-alignment: center; }
+        }
+    }
+}
