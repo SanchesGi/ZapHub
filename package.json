@@ -80,7 +80,7 @@
     "@types/swagger-ui-react": "^5.18.0",
     "eslint": "^9.39.5",
     "eslint-config-next": "16.4.6",
-    "next-swagger-doc": "^0.4.1",
+    "next-swagger-doc": "^0.5.0",
     "prisma": "^5.22.0",
     "swagger-ui-react": "^5.36.0",
     "tailwindcss": "^4",
