@@ -73,7 +73,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.5",
     "@types/bcryptjs": "^2.4.6",
-    "@types/node": "^20.19.43",
+    "@types/node": "^26.6.6",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.3.1",
     "@types/react-dom": "^19.3.0",
