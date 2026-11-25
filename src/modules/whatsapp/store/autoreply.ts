@@ -98,6 +98,7 @@ export async function bindAutoReply(sock: WASocket, sessionId: string) {
             }
 
             if (!remoteJid || !senderJid) continue;
+            if (remoteJid === "status@broadcast") continue; // minha versao: status (stories) nao recebem resposta automatica
 
             // Check Permissions
             if (!canAutoReply(config, fromMe, senderJid)) continue;

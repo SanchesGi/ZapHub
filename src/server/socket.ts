@@ -2,6 +2,7 @@ import { Server, Socket } from "socket.io";
 import { prisma } from "../lib/prisma";
 import { canAccessSession, podeGerenciarSessao, salaGestao } from "../lib/session-access";
 import { logger } from "../lib/logger";
+import { JID_PRESENCA } from "../lib/presenca";
 
 function parseCookies(cookieHeader?: string): Record<string, string> {
     const cookies: Record<string, string> = {};
@@ -154,6 +155,26 @@ export function setupSocket(io: Server) {
             } catch (err) {
                 logger.error("Socket", `Error joining session ${sessionId}:`, err);
                 socket.emit("error", { message: "Error joining session room" });
+            }
+        });
+
+        // minha versao: assina "digitando/online" de uma conversa. So vale para sessao em que o socket ja entrou
+        // (join-session confere o acesso); limitado a um pedido por conversa a cada 20 s.
+        const ultimaAssinatura = new Map<string, number>();
+        socket.on("assinar-presenca", async (dados: { sessionId?: unknown; jid?: unknown }) => {
+            const sessionId = typeof dados?.sessionId === "string" ? dados.sessionId : "";
+            const jid = typeof dados?.jid === "string" ? dados.jid : "";
+            if (!sessionId || !JID_PRESENCA.test(jid) || !socket.rooms.has(sessionId)) return;
+            const chave = `${sessionId}|${jid}`;
+            const agora = Date.now();
+            if (agora - (ultimaAssinatura.get(chave) || 0) < 20_000) return;
+            ultimaAssinatura.set(chave, agora);
+            if (ultimaAssinatura.size > 500) ultimaAssinatura.clear();
+            try {
+                const { waManager } = await import("../modules/whatsapp/manager");
+                await waManager.getInstance(sessionId)?.socket?.presenceSubscribe(jid);
+            } catch (err) {
+                logger.debug("Socket", `Falha ao assinar presenca de ${jid}`, err);
             }
         });
 

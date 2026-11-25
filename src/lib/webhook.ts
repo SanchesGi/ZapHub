@@ -1,6 +1,7 @@
 import { prisma } from "./prisma";
 import crypto from "crypto";
-import { normalizeMessageContent, downloadMediaMessage, WAMessage } from "@whiskeysockets/baileys";
+import { normalizeMessageContent, downloadMediaMessage, WAMessage, extractMessageContent as conteudoComMidia } from "@whiskeysockets/baileys";
+import { lerTemplate } from "./mensagem-template";
 import { writeFile } from "fs/promises";
 import { caminhoParaGravar, espacoNoDisco, obterPastaMidia } from "./pasta-midia";
 import { limiteMidiaBytes, minimoLivreBytes, tamanhoDeclarado, lerFluxoComLimite } from "./midia-limites";
@@ -395,7 +396,8 @@ export async function downloadAndSaveMedia(
     opcoes: { sock?: any; timeoutMs?: number } = {}
 ): Promise<string | null> {
     try {
-        const messageContent = normalizeMessageContent(message.message);
+        // minha versao: conteudoComMidia tambem tira a midia de dentro de template/botoes (o download do Baileys ja faz igual)
+        const messageContent = conteudoComMidia(message.message);
         if (!messageContent) {
             logger.debug("Media", "No content normalized");
             return null;
@@ -765,6 +767,13 @@ function extractMessageContent(msg: any): { type: string, content: string, capti
     let messageType = "TEXT";
 
     if (!messageContent) return { type: "UNKNOWN", content: "" };
+
+    // minha versao: template/botoes/lista (ex.: alertas da Defesa Civil) repassados com o texto
+    const template = lerTemplate(messageContent);
+    if (template) {
+        const comMidia = template.tipo !== "TEXT";
+        return { type: template.tipo, content: template.texto, caption: comMidia ? template.texto : undefined };
+    }
 
     if (messageContent.conversation) {
         text = messageContent.conversation;

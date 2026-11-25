@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import { waManager } from "@/modules/whatsapp/manager";
-import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
+import { getAuthenticatedUser, canAccessSession, podeGerenciarSessao } from "@/lib/api-auth";
+import { papelNoGrupo, ehMesmaConta } from "@/lib/grupo-admin"; // minha versao: papel da conta da sessao no grupo
 import { prisma } from "@/lib/prisma";
 
 // GET: Get group details
@@ -45,6 +46,11 @@ export async function GET(
             // Ignore error if no PP
         }
 
+        // minha versao: quem sou eu neste grupo (a conta da sessao) e se o usuario do painel pode gerenciar a sessao
+        const meusIds: Array<string | null | undefined> = [(instance.socket as any).user?.id, (instance.socket as any).user?.lid];
+        const meuPapel = papelNoGrupo(Array.isArray((metadata as any)?.participants) ? (metadata as any).participants : [], meusIds);
+        const podeGerenciar = await podeGerenciarSessao(user.id, user.role, sessionId);
+
         // minha versao: membros com nome e telefone resolvidos (inclusive @lid via Contact.lid)
         let participantsInfo: any[] = [];
         const parts: any[] = Array.isArray((metadata as any)?.participants) ? (metadata as any).participants : [];
@@ -66,6 +72,7 @@ export async function GET(
                 return {
                     id: p.id,
                     admin: p.admin || null,
+                    souEu: ehMesmaConta([p.id, p.lid, p.jid, p.phoneNumber], meusIds), // minha versao: e a conta desta sessao
                     name: c?.name || c?.notify || c?.verifiedName || null,
                     phone: phoneJid ? String(phoneJid).split("@")[0] : null
                 };
@@ -75,6 +82,8 @@ export async function GET(
         return NextResponse.json({
             ...metadata,
             pictureUrl: ppUrl,
+            podeGerenciar, // minha versao: o usuario do painel gerencia a sessao?
+            meuPapel, // minha versao: papel da conta da sessao no grupo (superadmin | admin | membro | desconhecido)
             participantsInfo
         });
 

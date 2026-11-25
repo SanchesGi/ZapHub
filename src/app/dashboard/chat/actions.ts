@@ -1,5 +1,6 @@
 "use server";
 
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { ChatService, type ChatListFilter } from "@/modules/whatsapp/chat.service";
 import { getAuthenticatedUserForAction } from "@/lib/server-action-auth";
@@ -441,4 +442,48 @@ async function paraTela(messages: any[]): Promise<any[]> {
         }
         return { ...m, extra: extraParaTela(m.extra) };
     }));
+}
+
+// minha versao: enviar uma ENQUETE pela tela (regras em lib/enquete: pergunta ate 255, 2 a 12 opcoes, sem repetidas)
+export async function enviarEnquete(sessionId: string, jid: string, dados: { pergunta: string; opcoes: string[]; multipla: boolean }) {
+    const user = await getAuthenticatedUserForAction();
+    if (!user) return falha("Unauthorized");
+    if (!(await canAccessSession(user.id, user.role, sessionId))) return falha("Forbidden");
+    if (typeof jid !== "string" || !/^[\w.:-]+@(s\.whatsapp\.net|g\.us|lid)$/.test(jid)) return falha("Conversa inválida");
+    const { validarEnquete } = await import("@/lib/enquete");
+    const v = validarEnquete(dados || {});
+    if (!v.ok) return falha(v.erro);
+    const socket = waManager.getInstance(sessionId)?.socket;
+    if (!socket) return falha("A sessão não está conectada. Tente de novo em instantes.");
+    try {
+        const r = await socket.sendMessage(jid, { poll: { name: v.pergunta, values: v.opcoes, selectableCount: v.selectableCount } });
+        marcarAgente(r, user.name || user.email).catch(() => {});
+        const { fireSentWebhook } = await import("@/lib/webhook");
+        fireSentWebhook(sessionId, jid, { type: "poll", text: v.pergunta }, r).catch(() => {});
+        return { success: true };
+    } catch (error: any) {
+        return falha(`Não consegui enviar a enquete: ${error?.message || "erro desconhecido"}`);
+    }
+}
+
+// minha versao: "Info da mensagem": enviada/entregue/lida com horario e, em grupo, quem recebeu e quem leu
+// minha versao: o id da mensagem vem do navegador; so aceita texto de 1 a 64 caracteres
+const idDaMensagem = z.string().min(1).max(64);
+
+export async function infoDaMensagem(sessionId: string, keyId: string) {
+    const user = await getAuthenticatedUserForAction();
+    if (!user) return falha("Unauthorized");
+    if (!(await canAccessSession(user.id, user.role, sessionId))) return falha("Forbidden");
+    const id = idDaMensagem.safeParse(keyId);
+    if (!id.success) return falha("Mensagem inválida");
+    const session = await prisma.session.findUnique({ where: { sessionId }, select: { id: true } });
+    if (!session) return falha("Session not found");
+    try {
+        const { infoDaMensagem: montar } = await import("@/modules/whatsapp/info-mensagem");
+        const info = await montar(session.id, id.data);
+        if (!info) return falha("Mensagem não encontrada");
+        return { success: true as const, info };
+    } catch (error: any) {
+        return falha(`Não consegui carregar a info: ${error?.message || "erro desconhecido"}`);
+    }
 }

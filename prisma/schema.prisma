@@ -46,6 +46,10 @@ model User {
   supervisor   User?   @relation("Supervisao", fields: [supervisorId], references: [id], onDelete: SetNull)
   equipe       User[]  @relation("Supervisao")
   apiKey    String?  @unique // API Key for authentication
+  // minha versao: sessoes (sessionId) que ESTE usuario silenciou: sem som, ilha nem notificacao so para ele
+  sessoesSilenciadas Json?
+  // minha versao: tom de pele dos emojis deste usuario (0 = amarelo padrao, 1..5 = tons); vale em qualquer computador
+  tomDePele Int?
   // minha versao: 2FA (TOTP) — usado so para SUPERADMIN. twoFactorSecret guardado so apos confirmar um codigo valido.
   twoFactorSecret  String?
   twoFactorEnabled Boolean @default(false)
@@ -59,6 +63,8 @@ model User {
   notifications Notification[]
   sessionAccesses SessionAccess[]
   aceitesTermos AceiteTermos[]
+  storiesVistos StoryVisto[]
+  figurinhas    Figurinha[]
 }
 
 model Session {
@@ -139,7 +145,7 @@ model Message {
 model Auditoria {
   id          String    @id @default(cuid())
   sessionId   String    // Session.sessionId (texto)
-  acao        String    // MENSAGEM_APAGADA
+  acao        String    // MENSAGEM_APAGADA | CONVERSA_APAGADA (uma linha por mensagem, todas com o mesmo criadoEm)
   origem      String    // PAINEL (usuario do painel) | CONTATO (quem enviou apagou no WhatsApp) | CELULAR (este numero apagou fora do painel)
   modo        String?   // TODOS (apagada para todos) | PARA_MIM (so neste aparelho)
   usuarioId   String?   // usuario do painel (origem PAINEL)
@@ -239,7 +245,37 @@ model Story {
   timestamp   DateTime @default(now())
   viewed      Boolean  @default(false)
 
+  // minha versao: status (stories) do painel. Todos os campos novos sao opcionais ou tem padrao (db push aditivo).
+  keyId       String?   // id da mensagem de status no WhatsApp (evita gravar duas vezes)
+  autorNome   String?   // nome de exibicao que veio com o status (pushName)
+  fromMe      Boolean   @default(false) // status publicado por este numero
+  fundo       String?   // cor de fundo dos status de texto (#RRGGBB)
+  fonte       Int?      // fonte dos status de texto
+  expiraEm    DateTime? // 24 h depois da publicacao; depois disso o status e apagado
+  extra       Json?     // dados para tentar baixar a midia de novo (so no servidor)
+
   session     Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  vistos      StoryVisto[]
+
+  // indice comum (nao unique): unique novo faz o `prisma db push` da VM parar pedindo --accept-data-loss.
+  // A duplicidade e evitada no codigo (store/status.ts confere antes de gravar).
+  @@index([sessionId, keyId])
+  @@index([sessionId, expiraEm])
+  @@index([sessionId, jid])
+}
+
+// minha versao: quem do painel ja viu cada status (por usuario: o que um atendente viu nao some para os outros)
+model StoryVisto {
+  id      String   @id @default(cuid())
+  storyId String
+  userId  String
+  vistoEm DateTime @default(now())
+
+  story   Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, userId])
+  @@index([userId])
 }
 
 model ScheduledMessage {
@@ -511,4 +547,22 @@ model PedidoTitular {
 
   @@index([status])
   @@index([criadoEm])
+}
+
+// minha versao: colecao de figurinhas POR ATENDENTE ("Adicionar as figurinhas" na conversa; painel de emojis > Figurinhas).
+// O arquivo (webp) fica na pasta de midia, em figurinhas/<sha256>.webp, compartilhado entre quem guardou a mesma.
+// Sem @@unique (o db push da VM nao pode pedir --accept-data-loss): a duplicidade (userId + hash) e conferida no codigo.
+model Figurinha {
+  id       String    @id @default(cuid())
+  userId   String
+  arquivo  String    // figurinhas/<hash>.webp (relativo a pasta de midia)
+  hash     String    // sha256 do arquivo
+  animada  Boolean   @default(false)
+  criadaEm DateTime  @default(now())
+  usadaEm  DateTime?
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, usadaEm])
+  @@index([userId, hash])
 }

@@ -42,36 +42,57 @@ async function nomeDe(dbSessionId: string, jid?: string | null): Promise<string 
     return c?.name || c?.notify || null;
 }
 
+// minha versao: busca de nomes com memoria, para registrar uma conversa inteira (centenas de mensagens do mesmo
+// contato) sem repetir a mesma consulta ao banco a cada mensagem.
+export type BuscaNome = (jid?: string | null) => Promise<string | null>;
+export function nomeDeComMemoria(dbSessionId: string): BuscaNome {
+    const memoria = new Map<string, Promise<string | null>>();
+    return (jid) => {
+        if (!jid) return Promise.resolve(null);
+        let p = memoria.get(jid);
+        if (!p) { p = nomeDe(dbSessionId, jid); memoria.set(jid, p); }
+        return p;
+    };
+}
+
+/** Monta a linha da Auditoria (nomes resolvidos) sem gravar. Quem grava: registrarApagada ou o createMany da conversa. */
+export async function montarRegistroAuditoria(
+    r: RegistroApagada,
+    opcoes: { acao?: "MENSAGEM_APAGADA" | "CONVERSA_APAGADA"; criadoEm?: Date; buscaNome?: BuscaNome } = {},
+) {
+    const m = r.mensagem;
+    const buscaNome: BuscaNome = opcoes.buscaNome || ((jid) => nomeDe(r.dbSessionId, jid));
+    const [chatNome, autorNomeContato] = await Promise.all([
+        buscaNome(m.remoteJid),
+        m.fromMe ? Promise.resolve(null) : buscaNome(m.senderJid || m.remoteJid),
+    ]);
+    const autorNome = m.fromMe
+        ? (m.sentBy ? `Você · ${m.sentBy}` : "Você (este número)")
+        : (autorNomeContato || m.pushName || telefone(m.senderJid || m.remoteJid) || "Contato");
+    return {
+        sessionId: r.sessionKey,
+        acao: opcoes.acao || "MENSAGEM_APAGADA",
+        origem: r.origem,
+        modo: r.modo || null,
+        usuarioId: r.usuarioId || null,
+        usuarioNome: r.usuarioNome || null,
+        chatJid: m.remoteJid,
+        chatNome: chatNome || telefone(m.remoteJid),
+        keyId: m.keyId,
+        autorJid: m.fromMe ? null : (m.senderJid || m.remoteJid),
+        autorNome,
+        fromMe: m.fromMe,
+        tipo: m.type || null,
+        conteudo: m.content || null,
+        mediaUrl: m.mediaUrl || null,
+        enviadaEm: m.timestamp || null,
+        ...(opcoes.criadoEm ? { criadoEm: opcoes.criadoEm } : {}),
+    };
+}
+
 export async function registrarApagada(r: RegistroApagada) {
     try {
-        const m = r.mensagem;
-        const [chatNome, autorNomeContato] = await Promise.all([
-            nomeDe(r.dbSessionId, m.remoteJid),
-            m.fromMe ? Promise.resolve(null) : nomeDe(r.dbSessionId, m.senderJid || m.remoteJid),
-        ]);
-        const autorNome = m.fromMe
-            ? (m.sentBy ? `Você · ${m.sentBy}` : "Você (este número)")
-            : (autorNomeContato || m.pushName || telefone(m.senderJid || m.remoteJid) || "Contato");
-        await prisma.auditoria.create({
-            data: {
-                sessionId: r.sessionKey,
-                acao: "MENSAGEM_APAGADA",
-                origem: r.origem,
-                modo: r.modo || null,
-                usuarioId: r.usuarioId || null,
-                usuarioNome: r.usuarioNome || null,
-                chatJid: m.remoteJid,
-                chatNome: chatNome || telefone(m.remoteJid),
-                keyId: m.keyId,
-                autorJid: m.fromMe ? null : (m.senderJid || m.remoteJid),
-                autorNome,
-                fromMe: m.fromMe,
-                tipo: m.type || null,
-                conteudo: m.content || null,
-                mediaUrl: m.mediaUrl || null,
-                enviadaEm: m.timestamp || null,
-            },
-        });
+        await prisma.auditoria.create({ data: await montarRegistroAuditoria(r) });
     } catch (e) {
         console.error("Falha ao registrar auditoria de mensagem apagada:", e);
     }

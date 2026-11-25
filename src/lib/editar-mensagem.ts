@@ -17,6 +17,7 @@ export function motivoParaNaoEditar(m: MensagemParaEditar, agora = Date.now()): 
     if ((m.type || "TEXT") !== "TEXT") return "Só dá para editar mensagens de texto";
     const extra = m.extra && typeof m.extra === "object" ? (m.extra as Record<string, unknown>) : {};
     if (extra.apagada) return "A mensagem foi apagada";
+    if (extra.enquete) return "Uma enquete não pode ser editada"; // minha versao: o texto dela e so o resumo
     const quando = m.timestamp == null ? Number.NaN : new Date(m.timestamp).getTime();
     if (Number.isNaN(quando)) return "Mensagem sem data";
     if (agora - quando > PRAZO_EDICAO_MS) return "O WhatsApp só deixa editar até 15 minutos depois de enviar";

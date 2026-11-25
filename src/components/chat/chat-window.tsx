@@ -3,12 +3,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Send, Paperclip, ArrowLeft, FileText, Image as ImageIcon, Music, Video, Download, ArrowDown, CornerUpLeft, Copy, Trash2, Info, X, Sparkles, Sticker, PenLine, Search } from "lucide-react";
+import { Send, Paperclip, ArrowLeft, FileText, Image as ImageIcon, Music, Video, Download, ArrowDown, CornerUpLeft, Copy, Trash2, Info, X, Sparkles, Sticker, PenLine, Search, Star } from "lucide-react";
+import { PainelEmoji } from "./painel-emoji"; // minha versao: painel de emojis e figurinhas
+import { salvarFigurinha } from "@/app/dashboard/chat/figurinhas-actions";
+import { aplicarTomSimples, inserirNoCursor } from "@/lib/emojis";
+import { useTomDePele } from "@/lib/tom-de-pele"; // minha versao: tom de pele dos emojis (guardado na conta)
 import { EVENTO_ALERTAS, lerAlertas, salvarAlertas, tocarEnviada } from "@/lib/sons";
 import { lerAssinatura, salvarAssinatura } from "@/lib/assinatura";
 import { pegarTextoDoLink } from "@/lib/link-whatsapp";
 import { useSession as useSessaoDoPainel } from "@/components/dashboard/session-provider";
-import { BookUser, UserPlus, MessageCircle, SmilePlus, Plus, Pin, PinOff, RefreshCw, ImageOff, ChevronLeft, Forward } from "lucide-react";
+import { BarChart3, BookUser, UserPlus, MessageCircle, SmilePlus, Plus, Pin, PinOff, RefreshCw, ImageOff, ChevronLeft, Forward, CheckSquare } from "lucide-react";
 import { Tiques } from "./chat-list";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -34,6 +38,7 @@ import { toast } from "sonner";
 import { getChatMessages, sendChatMessage, sendMediaMessage, reagirMensagem, marcarConversaLida, getEstadoConversa, fixarMensagem, tentarBaixarMidia, buscarNaConversa, pularParaMensagem } from "@/app/dashboard/chat/actions";
 import { exigirSucesso } from "@/lib/resultado-acao";
 import { useSocket } from "./socket-context";
+import { textoPresenca, VALIDADE_DIGITANDO_MS, type ItemPresenca } from "@/lib/presenca";
 import { InteractiveMessageDialog } from "./interactive-message-dialog";
 import { GravadorVoz } from "./gravador-voz";
 import { ReprodutorAudio } from "./reprodutor-audio";
@@ -42,6 +47,10 @@ import { TextoComLinks, PreviaLinkCartao, type PreviaLink } from "./texto-com-li
 import { VisualizadorImagem } from "./visualizador-imagem"; // minha versao: zoom nas fotos
 import { EncaminharDialog } from "./encaminhar-dialog"; // minha versao: encaminhar mensagem
 import { EditarMensagemDialog } from "./editar-mensagem-dialog"; // minha versao: editar mensagem enviada
+import { EnqueteDialog } from "./enquete-dialog"; // minha versao: criar enquete
+import { EnqueteCartao } from "./enquete-cartao"; // minha versao: enquete como cartao com placar
+import { InfoMensagemDialog } from "./info-mensagem-dialog"; // minha versao: info da mensagem (entregue/lida, quem leu)
+import type { Enquete } from "@/lib/enquete";
 import { motivoParaNaoEditar } from "@/lib/editar-mensagem";
 import { ChatInfoPanel, formatarTelefone, type Participante } from "./chat-info-panel";
 import { useTranslations } from "next-intl";
@@ -62,7 +71,7 @@ interface Message {
     quoteId?: string | null;
     sentBy?: string | null; // minha versao: atendente do painel que enviou
     origemEnvio?: "PLATAFORMA" | "FORA" | null; // minha versao: saiu pela plataforma ou fora dela (celular)
-    extra?: { contatos?: ContatoVcard[]; midiaPendente?: { falhou?: boolean } | null; previa?: PreviaLink | null; encaminhada?: { vezes: number } | null } | null; // minha versao: contatos encaminhados (vCard), midia ainda baixando e previa de link
+    extra?: { enquete?: Enquete | null; contatos?: ContatoVcard[]; midiaPendente?: { falhou?: boolean } | null; previa?: PreviaLink | null; encaminhada?: { vezes: number } | null } | null; // minha versao: contatos encaminhados (vCard), midia ainda baixando e previa de link
     reacoes?: Record<string, { e: string; n?: string | null }> | null; // minha versao: reacoes ("eu" = este numero)
     quoted?: {
         keyId: string;
@@ -121,6 +130,34 @@ const EMOJIS_MAIS = [
     "🎉", "💯", "✅", "❌", "⚠️", "📌", "📞", "💬", "⏰", "🚀", "💡", "🛠️", "📶", "⚡", "🌧️", "☀️",
 ];
 
+// minha versao: o conteudo so existe com o popover aberto (a lista de mensagens tem muitos botoes de reagir); aplica o tom de pele da conta
+function ConteudoReacoes({ minha, mais, setMais, escolher }: { minha?: string; mais: boolean; setMais: (fn: (v: boolean) => boolean) => void; escolher: (e: string) => void }) {
+    const [tom] = useTomDePele();
+    const rapidos = EMOJIS_RAPIDOS.map((e) => aplicarTomSimples(e, tom));
+    const todos = EMOJIS_MAIS.map((e) => aplicarTomSimples(e, tom));
+    return (
+        <>
+            <div className="flex items-center gap-0.5">
+                {rapidos.map((e) => (
+                    <button key={e} type="button" onClick={() => escolher(e)}
+                        className={cn("h-9 w-9 text-xl rounded-full hover:bg-muted hover:scale-125 transition-transform cursor-pointer", minha === e && "bg-primary/20")}>{e}</button>
+                ))}
+                <button type="button" onClick={() => setMais((v) => !v)} title="Mais emojis"
+                    className="h-9 w-9 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground cursor-pointer"><Plus className="h-4 w-4" /></button>
+            </div>
+            {mais && (
+                <div className="grid grid-cols-8 gap-0.5 mt-1.5 pt-1.5 border-t border-border/50 max-w-[300px]">
+                    {todos.map((e) => (
+                        <button key={e} type="button" onClick={() => escolher(e)}
+                            className={cn("h-8 w-8 text-lg rounded-lg hover:bg-muted cursor-pointer", minha === e && "bg-primary/20")}>{e}</button>
+                    ))}
+                </div>
+            )}
+            {minha && <p className="text-[10px] text-muted-foreground text-center mt-1">clique no seu emoji de novo para tirar</p>}
+        </>
+    );
+}
+
 function BotaoReagir({ onEscolher, minha, className }: { onEscolher: (e: string) => void; minha?: string; className?: string }) {
     const [aberto, setAberto] = useState(false);
     const [mais, setMais] = useState(false);
@@ -134,23 +171,7 @@ function BotaoReagir({ onEscolher, minha, className }: { onEscolher: (e: string)
                 </button>
             </PopoverTrigger>
             <PopoverContent side="top" className="w-auto p-1.5 rounded-2xl">
-                <div className="flex items-center gap-0.5">
-                    {EMOJIS_RAPIDOS.map((e) => (
-                        <button key={e} type="button" onClick={() => escolher(e)}
-                            className={cn("h-9 w-9 text-xl rounded-full hover:bg-muted hover:scale-125 transition-transform cursor-pointer", minha === e && "bg-primary/20")}>{e}</button>
-                    ))}
-                    <button type="button" onClick={() => setMais((v) => !v)} title="Mais emojis"
-                        className="h-9 w-9 rounded-full hover:bg-muted flex items-center justify-center text-muted-foreground cursor-pointer"><Plus className="h-4 w-4" /></button>
-                </div>
-                {mais && (
-                    <div className="grid grid-cols-8 gap-0.5 mt-1.5 pt-1.5 border-t border-border/50 max-w-[300px]">
-                        {EMOJIS_MAIS.map((e) => (
-                            <button key={e} type="button" onClick={() => escolher(e)}
-                                className={cn("h-8 w-8 text-lg rounded-lg hover:bg-muted cursor-pointer", minha === e && "bg-primary/20")}>{e}</button>
-                        ))}
-                    </div>
-                )}
-                {minha && <p className="text-[10px] text-muted-foreground text-center mt-1">clique no seu emoji de novo para tirar</p>}
+                <ConteudoReacoes minha={minha} mais={mais} setMais={setMais} escolher={escolher} />
             </PopoverContent>
         </Popover>
     );
@@ -317,6 +338,8 @@ function LazyMedia({ src, alt, onClick }: { src: string; alt: string; onClick?: 
 }
 
 // minha versao: mensagem de midia que ainda nao tem arquivo (baixando na fila, ou falhou de vez)
+const AVISO_FIGURINHA_BAIXANDO = "A figurinha ainda está baixando. Tente de novo em instantes.";
+
 function MidiaPendente({ msg, sessionId }: { msg: Message; sessionId: string }) {
     const [pedindo, setPedindo] = useState(false);
     const pend = msg.extra?.midiaPendente;
@@ -333,6 +356,12 @@ function MidiaPendente({ msg, sessionId }: { msg: Message; sessionId: string }) 
         <div className={cn("mb-1.5 flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs", msg.fromMe ? "bg-black/5 dark:bg-white/10" : "bg-muted/50")}>
             <ImageOff className="h-3.5 w-3.5 shrink-0" />
             <span className="flex-1">{pend ? `${artigo} ${rotulo} não baixou do WhatsApp.` : `${rotulo[0].toUpperCase()}${rotulo.slice(1)} indisponível no painel.`}</span>
+            {msg.type === "STICKER" && (
+                <button type="button" title="Adicionar às figurinhas" aria-label="Adicionar às figurinhas" className="shrink-0 text-primary cursor-pointer"
+                    onClick={(e) => { e.stopPropagation(); toast.info(pend?.falhou ? "A figurinha não baixou. Use \"tentar de novo\" antes de adicioná-la." : AVISO_FIGURINHA_BAIXANDO); }}>
+                    <Star className="h-3.5 w-3.5" />
+                </button>
+            )}
             {pend && (
                 <button type="button" disabled={pedindo} className="font-semibold underline underline-offset-2 disabled:opacity-50 cursor-pointer"
                     onClick={(e) => {
@@ -402,7 +431,13 @@ interface ContextMenuState {
     y: number;
     msg: Message;
 }
-function ContextMenu({ state, onClose, onReply, onDelete, fixada, onFixar, onEncaminhar, onEditar }: { state: ContextMenuState; onClose: () => void; onReply: (msg: Message) => void; onDelete: (msg: Message) => void; fixada: boolean; onFixar: (msg: Message, fixar: boolean, dias?: 1 | 7 | 30) => void; onEncaminhar: (msg: Message) => void; onEditar: (msg: Message) => void }) {
+// minha versao: o que pode ser encaminhado (texto e midia com arquivo; contato e mensagem apagada ficam de fora)
+function podeEncaminhar(m: Message): boolean {
+    return m.type !== "CONTACT" && !(m.extra as any)?.apagada && !m.extra?.enquete && (m.type === "TEXT" || !!m.mediaUrl);
+}
+const MAX_SELECAO = 100;
+
+function ContextMenu({ state, onClose, onReply, onDelete, fixada, onFixar, onEncaminhar, onEditar, onSelecionar, onInfo, onFigurinha }: { state: ContextMenuState; onClose: () => void; onReply: (msg: Message) => void; onDelete: (msg: Message) => void; fixada: boolean; onFixar: (msg: Message, fixar: boolean, dias?: 1 | 7 | 30) => void; onEncaminhar: (msg: Message) => void; onEditar: (msg: Message) => void; onSelecionar: (msg: Message) => void; onInfo: (msg: Message) => void; onFigurinha: (msg: Message) => void }) {
     const t = useTranslations("chat");
     const ref = useRef<HTMLDivElement>(null);
     const [submenu, setSubmenu] = useState(false);
@@ -421,30 +456,35 @@ function ContextMenu({ state, onClose, onReply, onDelete, fixada, onFixar, onEnc
         { label: "Por 30 dias", icon: Pin, action: () => { onFixar(state.msg, true, 30); onClose(); } },
     ] : [
         { label: t("reply"), icon: CornerUpLeft, action: () => { onReply(state.msg); onClose(); } },
+        { label: "Selecionar", icon: CheckSquare, action: () => { onSelecionar(state.msg); onClose(); } },
         { label: t("copy"), icon: Copy, action: () => { navigator.clipboard.writeText(state.msg.content || "").then(() => toast.success(t("copied"))).catch(() => {}); onClose(); } },
         // minha versao: editar (so texto proprio, ate 15 min depois de enviar — regra do WhatsApp)
         ...(motivoParaNaoEditar(state.msg as any) === null
             ? [{ label: "Editar", icon: PenLine, action: () => { onEditar(state.msg); onClose(); } }]
             : []),
         // minha versao: encaminhar (texto e midia com arquivo; contato e mensagem apagada ficam de fora)
-        ...(state.msg.type !== "CONTACT" && !(state.msg.extra as any)?.apagada && (state.msg.type === "TEXT" || state.msg.mediaUrl)
+        ...(podeEncaminhar(state.msg)
             ? [{ label: "Encaminhar", icon: Forward, action: () => { onEncaminhar(state.msg); onClose(); } }]
+            : []),
+        // minha versao: figurinha da conversa -> colecao deste atendente, direto pela plataforma (sem baixar o arquivo)
+        ...(state.msg.type === "STICKER" && state.msg.mediaUrl
+            ? [{ label: "Adicionar às figurinhas", icon: Star, action: () => { onFigurinha(state.msg); onClose(); } }]
             : []),
         // minha versao: fixar a mensagem na conversa (todos veem, como no WhatsApp)
         fixada
             ? { label: "Desafixar", icon: PinOff, action: () => { onFixar(state.msg, false); onClose(); } }
             : { label: "Fixar…", icon: Pin, action: () => setSubmenu(true) },
         { label: t("delete"), icon: Trash2, action: () => { onDelete(state.msg); onClose(); }, dangerous: true },
-        { label: t("info"), icon: Info, action: () => { toast.info(`ID: ${state.msg.keyId}\nStatus: ${state.msg.status}\nTime: ${new Date(state.msg.timestamp).toLocaleString()}`); onClose(); } },
+        { label: t("info"), icon: Info, action: () => { onInfo(state.msg); onClose(); } }, // minha versao: dialogo "Info da mensagem" (antes: so um aviso com ID/status)
     ];
 
     // Adjust position to not overflow viewport
     const style: React.CSSProperties = { position: "fixed", top: state.y, left: state.x, zIndex: 9999 };
-    if (state.x > window.innerWidth - 180) style.left = state.x - 180;
+    if (state.x > window.innerWidth - 240) style.left = Math.max(8, state.x - 230);
     if (state.y > window.innerHeight - 200) style.top = state.y - 180;
 
     return (
-        <div ref={ref} style={style} className="w-44 rounded-xl bg-popover border shadow-xl py-1 animate-in fade-in zoom-in-95 origin-top-left">
+        <div ref={ref} style={style} className="min-w-44 w-max max-w-64 rounded-xl bg-popover border shadow-xl py-1 animate-in fade-in zoom-in-95 origin-top-left">
             {items.map((item, i) => (
                 <button key={i} onClick={item.action} className={cn(
                     "w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors cursor-pointer",
@@ -475,6 +515,9 @@ export function ChatWindow({ sessionId, jid, name, onBack, onOpenChat }: ChatWin
     const t = useTranslations("chat");
     const tCommon = useTranslations("common");
     const [messages, setMessages] = useState<Message[]>([]);
+    // minha versao: o socket (efeito abaixo) chama o "voltar" mais recente sem precisar recriar a assinatura
+    const onBackRef = useRef(onBack);
+    onBackRef.current = onBack;
     // minha versao: keyIds de mensagens que chegaram agora pelo socket (so elas animam a entrada; abrir a conversa ou carregar antigas nao)
     const novasRef = useRef<Set<string>>(new Set());
     const [input, setInput] = useState("");
@@ -522,10 +565,17 @@ export function ChatWindow({ sessionId, jid, name, onBack, onOpenChat }: ChatWin
 
     // Interactive message dialog state
     const [interactiveDialogOpen, setInteractiveDialogOpen] = useState(false);
+    const [enqueteOpen, setEnqueteOpen] = useState(false); // minha versao: criar enquete
+    const [infoMsg, setInfoMsg] = useState<Message | null>(null); // minha versao: info da mensagem
     // minha versao: foto do contato no cabecalho + lightbox das imagens
     const [chatPic, setChatPic] = useState<string | null>(null);
     const [lightbox, setLightbox] = useState<string | null>(null);
     const [encaminhando, setEncaminhando] = useState<Message | null>(null); // minha versao: encaminhar
+    // minha versao: selecao multipla (encaminhar, copiar ou apagar varias de uma vez)
+    const [selecao, setSelecao] = useState<Set<string> | null>(null);
+    const [encaminhandoVarias, setEncaminhandoVarias] = useState<string[] | null>(null);
+    const [apagarVarias, setApagarVarias] = useState(false);
+    useEffect(() => { setSelecao(null); }, [sessionId, jid]);
     // minha versao: fotos carregadas desta conversa, em ordem (anterior/proxima no visualizador)
     const fotosDaConversa = useMemo(
         () => messages.filter((m) => m.type === "IMAGE" && m.mediaUrl).map((m) => m.mediaUrl as string),
@@ -574,6 +624,16 @@ export function ChatWindow({ sessionId, jid, name, onBack, onOpenChat }: ChatWin
         const p = m.senderJid ? participants.find((x) => x.id === m.senderJid) : undefined;
         const tel = m.senderJid?.endsWith("@s.whatsapp.net") ? formatarTelefone(m.senderJid.split("@")[0]) : (p?.phone ? formatarTelefone(p.phone) : "");
         return m.pushName || m.senderName || p?.name || tel || "Membro";
+    };
+    // minha versao: nome de quem votou numa enquete (a partir do JID do voto)
+    const nomeDoVotante = (j: string) => {
+        const numero = j.split("@")[0];
+        const p = participants.find((x) => x.id === j || (!!x.phone && x.phone === numero));
+        if (p?.name) return p.name;
+        if (!isGroup && j === jid) return nomeSalvo || name || formatarTelefone(numero) || "Contato";
+        // conversa privada: quem votou e o contato ou eu (meu numero nao aparece na lista)
+        if (!isGroup) return t("you");
+        return p?.phone ? (formatarTelefone(p.phone) || numero) : (j.endsWith("@s.whatsapp.net") ? (formatarTelefone(numero) || numero) : "Número oculto");
     };
     // minha versao: tamanho do texto da conversa (guardado no navegador; padrao 125%)
     const [escala, setEscala] = useState(1.25);
@@ -772,6 +832,49 @@ export function ChatWindow({ sessionId, jid, name, onBack, onOpenChat }: ChatWin
     }, [sessionId, jid]);
     useEffect(() => { setFixadas([]); carregarFixadas(); }, [carregarFixadas]);
 
+    // minha versao: "digitando…/online/visto por ultimo" no cabecalho. Assina a presenca ao abrir a conversa
+    // (e de novo a cada 4 min, que e quanto o WhatsApp costuma manter a assinatura).
+    const [presenca, setPresenca] = useState<{ itens: ItemPresenca[]; em: number } | null>(null);
+    const [agoraPresenca, setAgoraPresenca] = useState(() => Date.now());
+    useEffect(() => {
+        setPresenca(null);
+        const socket = getSocket();
+        if (!socket) return;
+        const assinar = () => socket.emit("assinar-presenca", { sessionId, jid });
+        const onPresenca = (d: { chat?: string; itens?: ItemPresenca[] }) => {
+            if (d?.chat !== jid || !Array.isArray(d.itens)) return;
+            setPresenca((ant) => {
+                // grupo: junta por participante; individual: o ultimo estado vale
+                const mapa = new Map((isGroup && ant ? ant.itens : []).map((i) => [i.quem, i]));
+                d.itens!.forEach((i) => mapa.set(i.quem, i));
+                return { itens: [...mapa.values()], em: Date.now() };
+            });
+        };
+        const espera = setTimeout(assinar, 800); // depois do join-session
+        const repete = setInterval(assinar, 4 * 60_000);
+        socket.on("connect", assinar);
+        socket.on("presenca", onPresenca);
+        return () => { clearTimeout(espera); clearInterval(repete); socket.off("connect", assinar); socket.off("presenca", onPresenca); };
+    }, [sessionId, jid, isGroup, getSocket]);
+    const temDigitando = !!presenca?.itens.some((i) => i.estado === "digitando" || i.estado === "gravando");
+    useEffect(() => {
+        if (!temDigitando) return;
+        const t = setInterval(() => setAgoraPresenca(Date.now()), 5_000);
+        return () => clearInterval(t);
+    }, [temDigitando]);
+    const textoDoCabecalho = useMemo(() => {
+        if (!presenca) return null;
+        const vencido = agoraPresenca - presenca.em > VALIDADE_DIGITANDO_MS;
+        const itens = vencido
+            ? presenca.itens.map((i) => (i.estado === "digitando" || i.estado === "gravando" ? { ...i, estado: "online" as const } : i))
+            : presenca.itens;
+        const nomeDe = (q: string) => {
+            const p = participants.find((x) => x.id === q || (x.phone && q.startsWith(x.phone.replace(/\D/g, ""))));
+            return p?.name || (p?.phone ? formatarTelefone(p.phone) : null);
+        };
+        return textoPresenca(itens, { grupo: isGroup, agora: Math.max(agoraPresenca, presenca.em), nomeDe });
+    }, [presenca, agoraPresenca, isGroup, participants]);
+
     // Socket real-time
     useEffect(() => {
         const socket = getSocket();
@@ -848,7 +951,16 @@ export function ChatWindow({ sessionId, jid, name, onBack, onOpenChat }: ChatWin
         socket.on("message.status", onStatus);
         socket.on("message.reaction", onReacao);
         socket.on("message.removed", onRemovida);
+        // minha versao: esta conversa foi apagada no celular -> limpa a tela e volta para a lista
+        const onConversaRemovida = (d: any) => {
+            if (d?.sessionKey !== sessionId || d.jid !== normalizedJid) return;
+            setMessages([]);
+            toast.info("Esta conversa foi apagada no celular. O registro está na Auditoria.");
+            onBackRef.current?.();
+        };
+        socket.on("chat.removed", onConversaRemovida);
         return () => {
+            socket.off("chat.removed", onConversaRemovida);
             socket.off("connect", onConnect); socket.off("message.update", handler);
             socket.off("message.status", onStatus); socket.off("message.reaction", onReacao);
             socket.off("message.removed", onRemovida); socket.off("chat.fixadas", onFixadas);
@@ -972,6 +1084,33 @@ export function ChatWindow({ sessionId, jid, name, onBack, onOpenChat }: ChatWin
         if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
     };
 
+    // minha versao: emoji do painel entra NA POSICAO DO CURSOR (ou no lugar do trecho selecionado), sem enviar, e o foco volta ao campo
+    const inserirEmoji = (emoji: string) => {
+        const el = inputRef.current;
+        const r = inserirNoCursor(el?.value ?? input, el?.selectionStart, el?.selectionEnd, emoji);
+        setInput(r.valor);
+        requestAnimationFrame(() => {
+            const campo = inputRef.current;
+            if (!campo) return;
+            campo.focus();
+            campo.setSelectionRange(r.cursor, r.cursor);
+            campo.style.height = "auto";
+            campo.style.height = Math.min(campo.scrollHeight, 120) + "px";
+        });
+    };
+
+    // minha versao: figurinha da conversa -> colecao DESTE atendente (o arquivo e conferido no servidor)
+    const adicionarAsFigurinhas = async (msg: Pick<Message, "keyId" | "mediaUrl">) => {
+        if (!msg.mediaUrl) { toast.info(AVISO_FIGURINHA_BAIXANDO); return; } // ainda nao baixou: avisa em vez de falhar
+        try {
+            const r = await salvarFigurinha(sessionId, msg.keyId);
+            if (!r.success) throw new Error(r.error);
+            toast.success(r.nova ? "Adicionada às suas figurinhas" : "Já está nas suas figurinhas");
+        } catch (e: any) {
+            toast.error(e?.message || "Não consegui adicionar a figurinha");
+        }
+    };
+
     // Focus input when replying
     useEffect(() => {
         if (replyingTo && inputRef.current) {
@@ -1032,6 +1171,7 @@ export function ChatWindow({ sessionId, jid, name, onBack, onOpenChat }: ChatWin
             if (e.key === "Escape") {
                 // os dialogs/menus fecham sozinhos (Radix) — nao fecho a conversa junto
                 if (previa?.length || deleteConfirmMsg || interactiveDialogOpen || dlgContato || mentionQuery !== null) return;
+                if (document.querySelector("[data-painel-emoji][data-state=open]")) return; // minha versao: Esc fecha o painel de emojis, nao a conversa
                 if (lightbox) { e.preventDefault(); setLightbox(null); return; }
                 if (infoOpen) { e.preventDefault(); setInfoOpen(false); return; }
                 if (replyingTo) { e.preventDefault(); setReplyingTo(null); return; }
@@ -1110,10 +1250,53 @@ export function ChatWindow({ sessionId, jid, name, onBack, onOpenChat }: ChatWin
     // Right-click handler
     const handleContextMenu = useCallback((e: React.MouseEvent, msg: Message) => {
         e.preventDefault();
+        if (selecao) return; // na selecao, o clique marca/desmarca
         setContextMenu({ x: e.clientX, y: e.clientY, msg });
-    }, []);
+    }, [selecao]);
 
     const displayName = nomeSalvo || name || formatarTelefone(jid.split('@')[0]) || jid.split('@')[0];
+
+    // minha versao: selecao multipla
+    const alternarSelecao = (keyId: string) => {
+        setSelecao((atual) => {
+            if (!atual) return atual;
+            const novo = new Set(atual);
+            if (novo.has(keyId)) novo.delete(keyId);
+            else if (novo.size < MAX_SELECAO) novo.add(keyId);
+            else toast.info(`No máximo ${MAX_SELECAO} mensagens por vez`);
+            return novo;
+        });
+    };
+    const selecionadasEmOrdem = selecao ? messages.filter((m) => selecao.has(m.keyId)) : [];
+    const copiarSelecionadas = () => {
+        const linhas = selecionadasEmOrdem.map((m) => {
+            const quando = new Date(m.timestamp);
+            const data = `${quando.toLocaleDateString("pt-BR")} ${quando.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+            const autor = m.fromMe ? (m.sentBy || "Você") : (isGroup ? nomeAutor(m) : displayName);
+            return `[${data}] ${autor}: ${m.content || ({ IMAGE: "📷 Foto", VIDEO: "🎥 Vídeo", AUDIO: "🎤 Áudio", DOCUMENT: "📄 Documento", STICKER: "Figurinha" } as Record<string, string>)[m.type] || "Mensagem"}`;
+        });
+        navigator.clipboard.writeText(linhas.join("\n"))
+            .then(() => { toast.success(linhas.length === 1 ? "Mensagem copiada" : `${linhas.length} mensagens copiadas`); setSelecao(null); })
+            .catch(() => toast.error("Não consegui copiar"));
+    };
+    const apagarSelecionadas = async () => {
+        const alvo = selecionadasEmOrdem;
+        setApagarVarias(false);
+        let todos = 0, paraMim = 0, falhas = 0;
+        for (const m of alvo) {
+            try {
+                const r = await fetch(`/api/messages/${sessionId}/${encodeURIComponent(jid)}/${m.keyId}`, { method: "DELETE" });
+                const d = await r.json().catch(() => ({}));
+                if (!r.ok || d?.status === false) throw new Error(d?.message || "erro");
+                if (d?.modo === "PARA_MIM") paraMim++; else todos++;
+                setMessages((p) => p.filter((x) => x.keyId !== m.keyId));
+            } catch { falhas++; }
+        }
+        setSelecao(null);
+        const partes = [todos && `${todos} para todos`, paraMim && `${paraMim} só para você`].filter(Boolean).join(", ");
+        if (falhas) toast.warning(`Apagadas: ${partes || "nenhuma"}. ${falhas} não deu para apagar.`);
+        else toast.success(`Mensagens apagadas: ${partes}`, { description: "O conteúdo ficou registrado na Auditoria." });
+    };
 
     // Loading is now handled gracefully inside the message list to prevent unmounting the layout
 
@@ -1148,8 +1331,16 @@ export function ChatWindow({ sessionId, jid, name, onBack, onOpenChat }: ChatWin
                     }}
                     onEncaminhar={(msg) => setEncaminhando(msg)}
                     onEditar={(msg) => setEditando(msg)}
+                    onSelecionar={(msg) => setSelecao(new Set([msg.keyId]))}
+                    onInfo={(msg) => setInfoMsg(msg)}
+                    onFigurinha={(msg) => { void adicionarAsFigurinhas(msg); }}
                 />
             )}
+
+            {/* minha versao: info da mensagem (enviada/entregue/lida; em grupo, quem recebeu e quem leu) */}
+            <InfoMensagemDialog key={infoMsg?.keyId || "nenhuma"} sessionId={sessionId}
+                mensagem={infoMsg ? { keyId: infoMsg.keyId, fromMe: infoMsg.fromMe, timestamp: infoMsg.timestamp, status: infoMsg.status } : null}
+                onFechar={() => setInfoMsg(null)} />
 
             {/* minha versao: editar mensagem de texto enviada */}
             <EditarMensagemDialog key={editando?.keyId || "nenhuma"} sessionId={sessionId} jid={jid}
@@ -1157,6 +1348,11 @@ export function ChatWindow({ sessionId, jid, name, onBack, onOpenChat }: ChatWin
                 onFechar={() => setEditando(null)} />
 
             {/* minha versao: encaminhar mensagem para outras conversas */}
+            {/* minha versao: encaminhar varias (selecao multipla) */}
+            <EncaminharDialog sessionId={sessionId} keyId={encaminhandoVarias}
+                resumo={encaminhandoVarias ? `${encaminhandoVarias.length} mensagens` : ""}
+                onFechar={() => { setEncaminhandoVarias(null); setSelecao(null); }} />
+
             <EncaminharDialog sessionId={sessionId} keyId={encaminhando?.keyId || null}
                 resumo={encaminhando ? (encaminhando.content || ({ IMAGE: "📷 Foto", VIDEO: "🎥 Vídeo", AUDIO: "🎤 Áudio", DOCUMENT: "📄 Documento", STICKER: "Figurinha" } as Record<string, string>)[encaminhando.type] || "Mensagem") : ""}
                 onFechar={() => setEncaminhando(null)} />
@@ -1237,6 +1433,22 @@ export function ChatWindow({ sessionId, jid, name, onBack, onOpenChat }: ChatWin
                 </AlertDialogContent>
             </AlertDialog>
 
+            {/* minha versao: confirmar apagar varias */}
+            <AlertDialog open={apagarVarias} onOpenChange={setApagarVarias}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Apagar {selecao?.size || 0} mensage{(selecao?.size || 0) === 1 ? "m" : "ns"}?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            As suas são apagadas para todos; as de outras pessoas, só para você (regra do WhatsApp). O conteúdo fica registrado na Auditoria.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={apagarSelecionadas}>Apagar</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
             {/* Loading older indicator */}
             {loadingMore && (
                 <div className="absolute top-2 left-1/2 -translate-x-1/2 z-40 bg-background/80 backdrop-blur-sm px-3 py-1 rounded-full shadow-sm border text-xs flex items-center gap-2">
@@ -1246,7 +1458,26 @@ export function ChatWindow({ sessionId, jid, name, onBack, onOpenChat }: ChatWin
             )}
 
             {/* Header */}
-            <div className="shrink-0 px-3 py-2.5 border-b bg-background/80 backdrop-blur-sm flex items-center gap-3 z-10">
+            {/* minha versao: barra da selecao multipla (no lugar do cabecalho) */}
+            {selecao && (
+                <div className="shrink-0 px-3 py-2.5 border-b bg-background/95 backdrop-blur-sm flex items-center gap-2 z-10">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setSelecao(null)} title="Cancelar seleção" aria-label="Cancelar seleção">
+                        <X className="h-4 w-4" />
+                    </Button>
+                    <span className="flex-1 text-sm font-medium">{selecao.size} selecionada{selecao.size === 1 ? "" : "s"}</span>
+                    <Button variant="ghost" size="sm" className="h-8 gap-1.5" disabled={!selecao.size} onClick={copiarSelecionadas}>
+                        <Copy className="h-4 w-4" /> <span className="hidden sm:inline">Copiar</span>
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-8 gap-1.5" disabled={!selecionadasEmOrdem.some(podeEncaminhar)}
+                        onClick={() => setEncaminhandoVarias(selecionadasEmOrdem.filter(podeEncaminhar).map((m) => m.keyId))}>
+                        <Forward className="h-4 w-4" /> <span className="hidden sm:inline">Encaminhar</span>
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-destructive hover:text-destructive" disabled={!selecao.size} onClick={() => setApagarVarias(true)}>
+                        <Trash2 className="h-4 w-4" /> <span className="hidden sm:inline">Apagar</span>
+                    </Button>
+                </div>
+            )}
+            <div className={`shrink-0 px-3 py-2.5 border-b bg-background/80 backdrop-blur-sm ${selecao ? "hidden" : "flex"} items-center gap-3 z-10`}>
                 {onBack && (
                     <Button variant="ghost" size="icon" className="h-8 w-8 md:hidden shrink-0 text-muted-foreground hover:text-foreground" onClick={onBack}>
                         <ArrowLeft className="h-4 w-4" />
@@ -1263,8 +1494,8 @@ export function ChatWindow({ sessionId, jid, name, onBack, onOpenChat }: ChatWin
                     </Avatar>
                     <div className="flex-1 min-w-0">
                         <h3 className="text-sm font-semibold text-foreground truncate">{displayName}</h3>
-                        <p className="text-[10px] text-muted-foreground truncate">
-                            {isGroup ? (participants.length ? `${participants.length} membros · clique para ver o grupo` : "clique para ver os dados do grupo") : "clique para ver os dados do contato"}
+                        <p className={`text-[10px] truncate ${textoDoCabecalho ? "text-primary font-medium" : "text-muted-foreground"}`}>
+                            {textoDoCabecalho ?? (isGroup ? (participants.length ? `${participants.length} membros · clique para ver o grupo` : "clique para ver os dados do grupo") : "clique para ver os dados do contato")}
                         </p>
                     </div>
                 </button>
@@ -1425,7 +1656,10 @@ export function ChatWindow({ sessionId, jid, name, onBack, onOpenChat }: ChatWin
                         const prevMsg = idx > 0 ? messages[idx - 1] : null;
                         const inicioSequencia = !prevMsg || showDate || prevMsg.fromMe || prevMsg.senderJid !== msg.senderJid;
                         return (
-                            <div key={msg.keyId} id={`msg-${msg.keyId}`} className={novasRef.current.has(msg.keyId) ? "msg-entrar" : undefined}>
+                            <div key={msg.keyId} id={`msg-${msg.keyId}`}
+                                className={cn(novasRef.current.has(msg.keyId) && "msg-entrar", selecao && "cursor-pointer rounded-lg transition-colors", selecao?.has(msg.keyId) && "bg-primary/15")}
+                                aria-selected={selecao ? selecao.has(msg.keyId) : undefined}
+                                onClickCapture={selecao ? (e) => { e.preventDefault(); e.stopPropagation(); alternarSelecao(msg.keyId); } : undefined}>
                                 {showDate && (
                                     <div className="flex justify-center my-3">
                                         <span className="text-[10px] font-medium text-muted-foreground bg-background/80 backdrop-blur-sm px-3 py-1 rounded-full shadow-sm border border-border/30">
@@ -1539,8 +1773,13 @@ export function ChatWindow({ sessionId, jid, name, onBack, onOpenChat }: ChatWin
                                         {msg.type === 'STICKER' && msg.mediaUrl && (
                                             <div className="relative group/media mb-1">
                                                 <img src={msg.mediaUrl} alt="Sticker" className="max-h-32 object-contain rounded-lg" loading="lazy" />
-                                                <Button size="icon" variant="secondary" className="absolute -top-1 -right-1 h-6 w-6 rounded-full opacity-0 group-hover/media:opacity-100 transition-opacity bg-background/80 backdrop-blur-sm"
-                                                    onClick={() => handleDownload(msg.mediaUrl!, nomeParaDownload(msg))}><Download className="h-3 w-3" /></Button>
+                                                {/* minha versao: "Adicionar as figurinhas" (colecao do atendente) sempre visivel; baixar e secundario e so aparece no hover */}
+                                                <div className="absolute -top-1 -right-1 flex gap-1">
+                                                    <Button size="icon" variant="secondary" title="Adicionar às figurinhas" aria-label="Adicionar às figurinhas" className="h-7 w-7 rounded-full border border-primary/40 bg-background/90 backdrop-blur-sm text-primary shadow-sm"
+                                                        onClick={() => { void adicionarAsFigurinhas(msg); }}><Star className="h-3.5 w-3.5" /></Button>
+                                                    <Button size="icon" variant="secondary" title="Baixar" aria-label="Baixar figurinha" className="h-6 w-6 rounded-full bg-background/80 backdrop-blur-sm opacity-0 group-hover/media:opacity-100 focus-visible:opacity-100 transition-opacity"
+                                                        onClick={() => handleDownload(msg.mediaUrl!, nomeParaDownload(msg))}><Download className="h-3 w-3" /></Button>
+                                                </div>
                                             </div>
                                         )}
                                         {/* CONTATO encaminhado (minha versao) */}
@@ -1581,12 +1820,14 @@ export function ChatWindow({ sessionId, jid, name, onBack, onOpenChat }: ChatWin
                                         {msg.type === 'TEXT' && !(msg.extra as any)?.apagada && (
                                             <PreviaLinkCartao previa={msg.extra?.previa} texto={msg.content} fromMe={msg.fromMe} />
                                         )}
+                                        {/* minha versao: ENQUETE como cartao (pergunta, opcoes, votos e quem votou) */}
+                                        {msg.extra?.enquete && <EnqueteCartao enquete={msg.extra.enquete} nomeDe={nomeDoVotante} fromMe={msg.fromMe} />}
                                         {/* Text */}
                                         <div className="flex items-end gap-2 min-w-0">
                                             {/* minha versao: min-w-0 + overflow-wrap:anywhere -> link comprido quebra dentro do balao */}
                                             <span className={cn("flex-1 min-w-0 text-sm break-words [overflow-wrap:anywhere] whitespace-pre-wrap", (msg.extra as any)?.apagada && "italic opacity-70")}
                                                 title={(msg.extra as any)?.apagada ? `Apagada por ${(msg.extra as any)?.por || "?"} — o conteúdo está na Auditoria` : undefined}>
-                                                {msg.type === 'CONTACT' ? null : <TextoComLinks texto={isGroup ? renderText(semAssinatura(msg)) : semAssinatura(msg)} fromMe={msg.fromMe} />}
+                                                {msg.type === 'CONTACT' || msg.extra?.enquete ? null : <TextoComLinks texto={isGroup ? renderText(semAssinatura(msg)) : semAssinatura(msg)} fromMe={msg.fromMe} />}
                                             </span>
                                             <span className={cn("text-[9px] shrink-0 leading-none flex items-center gap-0.5", msg.fromMe ? "text-primary-foreground/75" : "text-muted-foreground")}>
                                                 {(msg.extra as any)?.editada && !(msg.extra as any)?.apagada && <span className="italic mr-0.5">editada</span>}
@@ -1647,6 +1888,7 @@ export function ChatWindow({ sessionId, jid, name, onBack, onOpenChat }: ChatWin
                                 <Button variant="ghost" size="sm" className="justify-start gap-2 h-8 text-xs" onClick={() => triggerUpload('audio')}><Music className="h-3.5 w-3.5 text-chart-4" /> {t("audio")}</Button>
                                 <Button variant="ghost" size="sm" className="justify-start gap-2 h-8 text-xs" onClick={() => triggerUpload('document')}><FileText className="h-3.5 w-3.5 text-chart-5" /> {t("document")}</Button>
                                 <Button variant="ghost" size="sm" className="justify-start gap-2 h-8 text-xs" onClick={() => triggerUpload('sticker')}><Sticker className="h-3.5 w-3.5 text-chart-2" /> Figurinha</Button>
+                                <Button variant="ghost" size="sm" className="justify-start gap-2 h-8 text-xs" onClick={() => setEnqueteOpen(true)}><BarChart3 className="h-3.5 w-3.5 text-primary" /> Enquete</Button>
                                 <div className="my-1 border-t border-border/30" />
                                 <Button variant="ghost" size="sm" className="justify-start gap-2 h-8 text-xs text-primary hover:text-primary hover:bg-primary/10 font-medium" onClick={() => setInteractiveDialogOpen(true)}>
                                     <Sparkles className="h-3.5 w-3.5 text-primary" /> {t("interactiveAndTest")}
@@ -1664,6 +1906,10 @@ export function ChatWindow({ sessionId, jid, name, onBack, onOpenChat }: ChatWin
                     >
                         <Sparkles className="h-4.5 w-4.5" />
                     </Button>
+
+                    {/* minha versao: painel de emojis e figurinhas (lib/emojis.ts; colecao do atendente) */}
+                    <PainelEmoji sessionId={sessionId} jid={jid} onEmoji={inserirEmoji}
+                        onFigurinhaEnviada={() => { tocarEnviada(); setTimeout(() => fetchMessages(), 900); }} />
 
                     <div className="flex-1 relative">
                         {/* minha versao: popup de @mencao (membros do grupo) */}
@@ -1717,6 +1963,10 @@ export function ChatWindow({ sessionId, jid, name, onBack, onOpenChat }: ChatWin
                     {input.trim() && <Button onClick={handleSend} size="icon" className="h-9 w-9 rounded-full shrink-0"><Send className="h-4 w-4" /></Button>}
                 </div>
             </div>
+
+            {/* minha versao: criar enquete */}
+            <EnqueteDialog open={enqueteOpen} onOpenChange={setEnqueteOpen} sessionId={sessionId} jid={jid}
+                onEnviada={() => { setTimeout(() => fetchMessages(), 600); }} />
 
             {/* Interactive Message & Test Trigger Dialog */}
             <InteractiveMessageDialog

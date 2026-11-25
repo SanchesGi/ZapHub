@@ -1,6 +1,18 @@
 import { NextResponse, NextRequest } from "next/server";
+import { z } from "zod";
 import { waManager } from "@/modules/whatsapp/manager";
 import { getAuthenticatedUser, canAccessSession, podeGerenciarSessao } from "@/lib/api-auth";
+
+// minha versao: validacao no servidor (antes qualquer texto ia direto ao WhatsApp)
+const JID_PARTICIPANTE = /^\d{5,20}@(?:s\.whatsapp\.net|lid)$/;
+const JID_GRUPO = /^[\w-]{1,64}@g\.us$/;
+const corpoMembros = z.object({
+    action: z.enum(["add", "remove", "promote", "demote"], { message: "action deve ser add, remove, promote ou demote" }),
+    participants: z
+        .array(z.string().regex(JID_PARTICIPANTE, "participante inválido: use o JID completo (número@s.whatsapp.net ou @lid)"), { message: "participants deve ser uma lista de JIDs" })
+        .min(1, "informe pelo menos 1 participante")
+        .max(20, "no máximo 20 participantes por vez"),
+});
 
 // PUT: Update group members (add, remove, promote, demote)
 export async function PUT(
@@ -15,23 +27,16 @@ export async function PUT(
         
         const { sessionId, jid } = await params;
         const decodedJid = decodeURIComponent(jid);
-        const body = await request.json();
-        const { action, participants } = body;
-
-        if (!action || !participants || !Array.isArray(participants)) {
-            return NextResponse.json({ status: false, message: "action and participants (array) are required", error: "action and participants (array) are required" }, { status: 400 });
+        if (!JID_GRUPO.test(decodedJid)) {
+            return NextResponse.json({ status: false, message: "JID do grupo inválido (deve terminar em @g.us)", error: "JID do grupo inválido (deve terminar em @g.us)" }, { status: 400 });
         }
-
-        const validActions = ['add', 'remove', 'promote', 'demote'];
-        if (!validActions.includes(action)) {
-            return NextResponse.json({ 
-                error: `Invalid action. Must be one of: ${validActions.join(', ')}` 
-            }, { status: 400 });
+        const body = await request.json().catch(() => null);
+        const corpo = corpoMembros.safeParse(body);
+        if (!corpo.success) {
+            const motivo = corpo.error.issues[0]?.message || "dados inválidos";
+            return NextResponse.json({ status: false, message: `Dados inválidos: ${motivo}`, error: `Dados inválidos: ${motivo}` }, { status: 400 });
         }
-
-        if (participants.length === 0) {
-            return NextResponse.json({ status: false, message: "Participants array cannot be empty", error: "Participants array cannot be empty" }, { status: 400 });
-        }
+        const { action, participants } = corpo.data;
 
         // Check if user can access this session
         const canAccess = await podeGerenciarSessao(user.id, user.role, sessionId);

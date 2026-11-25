@@ -5,6 +5,7 @@ import { waManager } from "@/modules/whatsapp/manager";
 import { logger } from "./logger";
 import { executarRetencao, diaJaExecutado, marcarDiaExecutado } from "./retencao";
 import { horaNoFuso, diaNoFuso } from "./lgpd-puro";
+import { limparStatusVencidos } from "@/modules/whatsapp/store/status";
 
 // minha versao: fuso das configuracoes do sistema (antes o cron usava Asia/Jakarta fixo)
 async function fusoDoSistema(): Promise<string> {
@@ -144,6 +145,16 @@ export function initScheduler() {
             logger.info("Cron", `Retencao: ${r.mensagens?.apagadas ?? 0} mensagem(ns), ${r.midias?.arquivos ?? 0} midia(s)${r.erro ? ` (erro: ${r.erro})` : ""}`);
         } catch (error) {
             logger.error("Cron", "Retention error:", error);
+        }
+    });
+
+    // minha versao: status (stories) valem 24 h; a cada 30 min apaga os vencidos e os arquivos deles
+    cron.schedule("*/30 * * * *", async () => {
+        try {
+            const n = await limparStatusVencidos();
+            if (n > 0) logger.info("Cron", `Status vencidos apagados: ${n}`);
+        } catch (error) {
+            logger.error("Cron", "Status cleanup error:", error);
         }
     });
 

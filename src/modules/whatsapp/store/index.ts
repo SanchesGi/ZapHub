@@ -8,10 +8,16 @@ import { nomeAgentePendente, enviadaPelaPlataforma } from "@/lib/agente";
 import { comRetry1020 } from "./groups";
 import { registrarApagada, apagandoPeloPainel } from "@/lib/auditoria";
 import { agendarDownload, descritorMidia, extraParaTela, TIPOS_MIDIA } from "@/lib/midia-fila";
+import { lerTemplate } from "@/lib/mensagem-template";
 import { registrarFixacao, estadosDe } from "./estado-chat";
 import { lidaAte, avisarSeFicouLida } from "@/lib/leitura";
 import { previaDoWhatsApp } from "@/lib/previa-link";
 import { autorDoProtocolo, ehAdmin, mesmoChat, type Pedido } from "./autoria-protocolo";
+import { extraDaEnquete, tratarVotoEnquete } from "./enquete-votos"; // minha versao: enquete (estrutura + placar ao vivo)
+import { registrarRecibo } from "./recibos-store"; // minha versao: recibos por participante (Info da mensagem)
+import { paraMs } from "@/lib/recibos";
+import { tratarStatus } from "./status";
+import { ehJidDeStatus } from "@/lib/status-puro";
 
 import { Server } from "socket.io";
 import { logger } from "@/lib/logger";
@@ -202,7 +208,8 @@ export const bindSessionStore = (sock: WASocket, sessionId: string, io: Server |
         for (const msg of messages) {
             try {
                 // Auto Read Logic
-                if (type === 'notify' && (config as any)?.autoRead && !msg.key.fromMe) {
+                // minha versao: o "ler automaticamente" nao vale para status (avisaria o autor de que o status foi visto)
+                if (type === 'notify' && (config as any)?.autoRead && !msg.key.fromMe && !ehJidDeStatus(msg.key.remoteJid)) {
                     await sock.readMessages([msg.key]);
                 }
 
@@ -390,6 +397,13 @@ export const bindSessionStore = (sock: WASocket, sessionId: string, io: Server |
                     select: { status: true, remoteJid: true, fromMe: true }
                 });
                 if (!atual) continue;
+                // minha versao: conversa privada: o recibo do contato vira "entregue/lida as HH:MM" no Info da mensagem
+                // (antes do "so avanca": o horario de um recibo atrasado tambem vale)
+                if (atual.fromMe && !atual.remoteJid.endsWith("@g.us") && (bruto === 3 || bruto === 4 || bruto === 5)) {
+                    const quando = paraMs(up.messageTimestamp) ?? Date.now();
+                    const campo = ({ 3: "entregue", 4: "lida", 5: "tocada" } as Record<number, "entregue" | "lida" | "tocada">)[bruto as number];
+                    registrarRecibo(dbSessionId, keyId, atual.remoteJid, { [campo]: quando });
+                }
                 if (status !== 'FAILED' && ordem.indexOf(atual.status) >= ordem.indexOf(status)) continue;
 
                 await prisma.message.updateMany({
@@ -421,6 +435,16 @@ export const bindSessionStore = (sock: WASocket, sessionId: string, io: Server |
         const porConversa = new Map<string, string[]>();
         for (const u of updates as any[]) {
             const quem = u?.receipt?.userJid;
+            // minha versao: recibo de OUTRO participante sobre mensagem minha -> extra.recibos (Info da mensagem)
+            if (u?.key?.id && u.key.remoteJid && quem && !eu.some((j) => areJidsSameUser(j, quem))) {
+                const r = u.receipt;
+                const parcial = {
+                    ...(paraMs(r.receiptTimestamp) ? { entregue: paraMs(r.receiptTimestamp) as number } : {}),
+                    ...(paraMs(r.readTimestamp) ? { lida: paraMs(r.readTimestamp) as number } : {}),
+                    ...(paraMs(r.playedTimestamp) ? { tocada: paraMs(r.playedTimestamp) as number } : {}),
+                };
+                if (Object.keys(parcial).length) registrarRecibo(dbSessionId, u.key.id, normalizeJid(quem), parcial);
+            }
             if (!u?.key?.id || !u.key.remoteJid || !u.receipt?.readTimestamp || !quem) continue;
             if (!eu.some((j) => areJidsSameUser(j, quem))) continue;
             const ids = porConversa.get(u.key.remoteJid) || [];
@@ -564,6 +588,13 @@ async function processAndSaveMessage(
     if (!msg.message) return false;
     if (!keyId || !remoteJid) return false;
 
+    // minha versao: status (stories) nao sao conversa: ficam na tabela Story (src/modules/whatsapp/store/status.ts),
+    // sem entrar na lista de conversas, sem notificacao de mensagem e sem o bot/boas-vindas.
+    if (ehJidDeStatus(remoteJid)) {
+        await tratarStatus({ msg, dbSessionId, sessionId, sock, io, aoVivo, triggerWebhook });
+        return null;
+    }
+
     // Ignore specific technical message types
     const messageKeys = Object.keys(msg.message);
 
@@ -633,6 +664,7 @@ async function processAndSaveMessage(
                 // minha versao: edicao feita no celular (ou em outro painel) aparece na hora nas telas abertas
                 (global as any).io?.to(sessionId).emit("message.update", [{
                     ...editada,
+                    extra: extraParaTela(editada.extra), // minha versao: dados de download e recibos ficam so no servidor
                     sessionKey: sessionId,
                     live: false,
                     timestamp: editada.timestamp instanceof Date ? editada.timestamp.toISOString() : editada.timestamp,
@@ -701,6 +733,12 @@ async function processAndSaveMessage(
         return null;
     }
 
+    // minha versao: VOTO de enquete (cifrado no rc14): decifra, atualiza o placar da enquete e nao vira mensagem propria
+    if (messageKeys.includes('pollUpdateMessage')) {
+        await tratarVotoEnquete({ msg, dbSessionId, sessionId, sock, io });
+        return null;
+    }
+
     const ignoredTypes = [
         'protocolMessage',
         'senderKeyDistributionMessage',
@@ -757,10 +795,16 @@ async function processAndSaveMessage(
     const rawMsg = msg.message as any;
     const interactiveMsg = messageContent?.interactiveMessage || 
         rawMsg?.viewOnceMessage?.message?.interactiveMessage || 
-        rawMsg?.viewOnceMessageV2?.message?.interactiveMessage;
+        rawMsg?.viewOnceMessageV2?.message?.interactiveMessage ||
+        (messageContent as any)?.templateMessage?.interactiveMessageTemplate;
+    // minha versao: template/botoes/lista no formato antigo (ex.: alertas da Defesa Civil); antes virava "[template]"
+    const template = lerTemplate(messageContent);
 
     // Extract content based on message type
-    if (interactiveMsg) {
+    if (template) {
+        messageType = template.tipo;
+        text = template.texto;
+    } else if (interactiveMsg) {
         messageType = "TEXT";
         const title = interactiveMsg.header?.title ? `*${interactiveMsg.header.title}*\n` : "";
         const body = interactiveMsg.body?.text || "";
@@ -855,6 +899,8 @@ async function processAndSaveMessage(
         if (poll) {
             const ops = (poll.options || []).map((o: any) => o.optionName).filter(Boolean);
             text = `📊 Enquete: ${poll.name || ""}${ops.length ? "\n" + ops.map((o: string) => `• ${o}`).join("\n") : ""}`;
+            // minha versao: estrutura da enquete (a tela mostra o cartao com placar) + chave para decifrar os votos
+            extra = { ...(extra || {}), ...(extraDaEnquete(msg, messageContent, sock) || {}) };
         } else if (mc.eventMessage) {
             text = `📅 Evento: ${mc.eventMessage.name || ""}`.trim();
         } else if (mc.groupInviteMessage) {
@@ -967,7 +1013,7 @@ async function processAndSaveMessage(
                 ...(extra ? { extra } : {})
             }
         });
-        if (midiaNaFila) agendarDownload({ sessionId, dbSessionId, msg });
+        if (midiaNaFila) agendarDownload({ sessionId, dbSessionId, msg, prioridade: aoVivo });
 
         // Ensure contact exists (Upsert Contact)
         const finalRemoteJid = normalizeJid(normalizedRemoteJid);

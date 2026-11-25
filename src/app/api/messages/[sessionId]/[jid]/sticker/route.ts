@@ -4,6 +4,7 @@ import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
 import { fireSentWebhook } from "@/lib/webhook";
 import Sticker from "wa-sticker-formatter";
 import { marcarAgente } from "@/lib/agente";
+import { salvarFigurinhaDoUsuario } from "@/lib/figurinhas";
 
 // POST: Send sticker from image
 export async function POST(
@@ -30,8 +31,12 @@ export async function POST(
             return NextResponse.json({ status: false, message: "Forbidden - Cannot access this session", error: "Forbidden - Cannot access this session" }, { status: 403 });
         }
 
+        // minha versao: "Criar figurinha" do painel de emojis manda enviar=0 (so cria e guarda) e salvar=1 (guarda na colecao do atendente)
+        const soGuardar = formData.get("enviar") === "0";
+        const guardar = formData.get("salvar") === "1";
+
         const instance = waManager.getInstance(sessionId);
-        if (!instance?.socket) {
+        if (!soGuardar && !instance?.socket) {
             return NextResponse.json({ status: false, message: "Session not ready", error: "Session not ready" }, { status: 503 });
         }
 
@@ -57,13 +62,24 @@ export async function POST(
 
         const stickerBuffer = await sticker.toBuffer();
 
-        const sendResult = await instance.socket.sendMessage(decodedJid, { sticker: stickerBuffer });
+        // minha versao: guarda na colecao do atendente (limites e duplicidade em lib/figurinhas); falha aqui nao derruba o envio
+        let salva: { ok: true; nova: boolean } | { ok: false; erro: string } | undefined;
+        if (guardar) {
+            salva = await salvarFigurinhaDoUsuario(user.id, stickerBuffer).catch((e: any) => ({ ok: false as const, erro: e?.message || "erro ao guardar" }));
+        }
+
+        if (soGuardar) {
+            if (!salva?.ok) return NextResponse.json({ status: false, message: salva?.erro || "Nada a guardar", error: salva?.erro || "Nada a guardar" }, { status: 400 });
+            return NextResponse.json({ status: true, message: "Operation successful", guardada: true, nova: salva.nova });
+        }
+
+        const sendResult = await instance!.socket!.sendMessage(decodedJid, { sticker: stickerBuffer });
 
         // Fire webhook for sent message (non-blocking)
         fireSentWebhook(sessionId, decodedJid, { type: 'sticker' }, sendResult).catch(() => {});
         marcarAgente(sendResult, user.name || user.email).catch(() => {}); // minha versao: atendente
 
-        return NextResponse.json({ status: true, message: "Operation successful" });
+        return NextResponse.json({ status: true, message: "Operation successful", ...(salva ? { guardada: salva.ok, ...(salva.ok ? { nova: salva.nova } : { erroAoGuardar: salva.erro }) } : {}) });
 
     } catch (e) {
         console.error("Sticker error", e);

@@ -14,6 +14,7 @@ import { MessageCircle, Users, X } from "lucide-react";
 import { useSocket } from "@/components/chat/socket-context";
 import { useSession as useWaSession } from "@/components/dashboard/session-provider";
 import { EVENTO_ALERTAS, desbloquearAudio, lerAlertas, tocarRecebida, type Alertas } from "@/lib/sons";
+import { carregarSessoesSilenciadas, sessoesSilenciadasAgora } from "@/lib/sessoes-silenciadas";
 import { EVENTO_ABRIR_CHAT, jidDaUrl, urlDoJid } from "@/lib/jid-url";
 
 export const EVENTO_ILHA_FLUTUANTE = "wa-ilha-flutuante";
@@ -152,6 +153,7 @@ export function Notificador() {
         desbloquearAudio();
         const h = (e: Event) => { alertasRef.current = (e as CustomEvent).detail || lerAlertas(); };
         window.addEventListener(EVENTO_ALERTAS, h);
+        void carregarSessoesSilenciadas();
         limparReivindicacoes();
         // pede permissao de notificacao no primeiro clique (o navegador exige um gesto)
         const pedir = () => {
@@ -273,6 +275,8 @@ export function Notificador() {
                 if (!jid || jid.endsWith("@broadcast") || jid.endsWith("@newsletter")) continue;
                 const sess = sessionsRef.current.find((s) => s.sessionId === m.sessionKey) || sessionsRef.current.find((s) => s.id === m.sessionId);
                 if (!sess) continue;
+                // minha versao: sessao inteira silenciada por este usuario (menu de alertas)
+                if (sessoesSilenciadasAgora().includes(sess.sessionId)) continue;
                 const grupo = jid.endsWith("@g.us");
                 const pessoa = m.senderName || m.pushName || telefone(m.senderJid) || (grupo ? "Membro" : "");
                 const titulo = grupo ? (m.chatName || "Grupo") : (m.chatName || m.pushName || telefone(jid) || "Contato");

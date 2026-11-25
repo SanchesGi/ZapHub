@@ -69,8 +69,11 @@ jobs:
       - name: Build
         run: npm run build
 
+      # minha versao: npm audit alto/critico com excecoes com motivo e prazo (.github/auditoria-excecoes.json)
       - name: Dependencias com falha alta ou critica (npm audit)
-        run: npm audit --audit-level=high
+        run: |
+          npm audit --json > npm-audit.json || true
+          node scripts/auditoria-dependencias.mjs
 
   segredos:
     name: Senhas e chaves vazadas (gitleaks)

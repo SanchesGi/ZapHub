@@ -6,6 +6,7 @@ import { jidsDoTitular, variantesDoTitular } from "./lgpd-puro";
 import { apagarArquivosDeMidia } from "./lgpd-midia";
 
 const LOTE = 500;
+const MAX_PAGINAS_STORIES = 100; // teto de seguranca do laco dos arquivos de status (50 mil status por pedido)
 
 /** todos os identificadores (jid de telefone, lid, alternativos) e os contatos que casam com o telefone */
 export async function identificarTitular(telefone: unknown) {
@@ -130,6 +131,24 @@ export async function apagarTitular(telefone: unknown): Promise<ResultadoApagarT
         r.midias += a.arquivos; r.bytesDeMidia += a.bytes;
         await prisma.auditoria.deleteMany({ where: { id: { in: lote.map((m) => m.id) } } });
         r.auditoria += lote.length;
+    }
+
+    // minha versao: status (stories) do titular: os arquivos de midia saem antes das linhas (LGPD); o arquivo que alguma
+    // mensagem ainda usa fica (as do titular ja foram apagadas acima). As linhas saem na transacao abaixo.
+    for (let pagina = 0; pagina < MAX_PAGINAS_STORIES; pagina++) {
+        const lote = await prisma.story.findMany({
+            where: { jid: { in: ids }, mediaUrl: { not: null } },
+            select: { id: true, mediaUrl: true },
+            orderBy: { id: "asc" },
+            take: LOTE,
+            skip: pagina * LOTE, // so os arquivos sao apagados aqui, as linhas continuam: avanca a pagina
+        });
+        if (!lote.length) break;
+        const urls = lote.map((x) => x.mediaUrl).filter((u): u is string => !!u);
+        const emUso = new Set((await prisma.message.findMany({ where: { mediaUrl: { in: urls } }, select: { mediaUrl: true } })).map((m) => m.mediaUrl));
+        const a = await apagarArquivosDeMidia(urls.filter((u) => !emUso.has(u)));
+        r.midias += a.arquivos; r.bytesDeMidia += a.bytes;
+        if (lote.length < LOTE) break;
     }
 
     const idsContatos = contatos.map((c) => c.id);

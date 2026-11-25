@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     if (!conta) return NextResponse.json({ status: false, message: "Usuário não encontrado" }, { status: 404 });
     const { apiKey, ...contaSemChave } = conta;
 
-    const [aceites, logs, sessoes, acessos, notificacoes, webhooks, mensagensEnviadas] = await Promise.all([
+    const [aceites, logs, sessoes, acessos, notificacoes, webhooks, mensagensEnviadas, figurinhas] = await Promise.all([
         prisma.aceiteTermos.findMany({ where: { userId: user.id }, orderBy: { aceitoEm: "asc" }, select: { versao: true, aceitoEm: true, ip: true, userAgent: true } }),
         prisma.logAcesso.findMany({
             where: { OR: [{ usuarioId: user.id }, { usuarioEmail: conta.email }] },
@@ -29,6 +29,8 @@ export async function GET(req: NextRequest) {
         prisma.notification.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 2000, select: { title: true, message: true, type: true, read: true, createdAt: true } }),
         prisma.webhook.findMany({ where: { userId: user.id }, select: { name: true, url: true, events: true, isActive: true, createdAt: true } }),
         conta.name ? prisma.message.count({ where: { sentBy: conta.name } }) : Promise.resolve(0),
+        // minha versao: as figurinhas guardadas (so o registro: quando guardou, se e animada, quando usou por ultimo)
+        prisma.figurinha.findMany({ where: { userId: user.id }, orderBy: { criadaEm: "desc" }, take: 500, select: { criadaEm: true, usadaEm: true, animada: true } }),
     ]);
 
     const dados = {
@@ -41,6 +43,7 @@ export async function GET(req: NextRequest) {
         webhooks,
         notificacoes,
         mensagensEnviadasPorMim: mensagensEnviadas,
+        figurinhasGuardadas: { total: figurinhas.length, itens: figurinhas },
     };
     return new NextResponse(JSON.stringify(dados, null, 2), {
         status: 200,

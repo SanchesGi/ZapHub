@@ -32,7 +32,12 @@ export async function sessoesDaMidia(nome: string): Promise<string[]> {
         where: { sessionId: { in: sessoes.map((s) => s.id) }, keyId: { in: div.map((d) => d.keyId) }, mediaUrl: url },
         select: { sessionId: true },
     });
-    return [...new Set(msgs.map((m) => m.sessionId))];
+    // minha versao: a midia de um status (Story) tambem tem dona: a sessao do status
+    const stories = await prisma.story.findMany({
+        where: { sessionId: { in: sessoes.map((s) => s.id) }, keyId: { in: div.map((d) => d.keyId) }, mediaUrl: url },
+        select: { sessionId: true },
+    });
+    return [...new Set([...msgs, ...stories].map((m) => m.sessionId))];
 }
 
 /**

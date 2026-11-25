@@ -7,6 +7,7 @@ import { prisma } from "./prisma";
 import { waManager } from "@/modules/whatsapp/manager";
 import { desconectarUsuario } from "./revogar-socket";
 import { nomeDeMidiaValido, pastasDeLeitura } from "./pasta-midia";
+import { arquivosDoUsuario, apagarArquivosOrfaosDe } from "./figurinhas";
 
 /** apaga os arquivos <sessionId>-* (sem tocar nos de outra sessao cujo nome comece igual, ex.: "loja" e "loja-2") */
 export async function apagarMidiasDaSessao(sessionId: string): Promise<{ arquivos: number; bytes: number }> {
@@ -35,6 +36,8 @@ export async function apagarMidiasDaSessao(sessionId: string): Promise<{ arquivo
 export async function excluirUsuario(id: string): Promise<{ sessoesRemovidas: number; arquivosRemovidos: number; email: string | null; role: string | null }> {
     const alvo = await prisma.user.findUnique({ where: { id }, select: { email: true, role: true } });
     const sessoes = await prisma.session.findMany({ where: { userId: id }, select: { id: true, sessionId: true } });
+    // minha versao: as linhas das figurinhas saem em cascata com o usuario; os arquivos que ficarem sem uso saem depois
+    const arquivosDeFigurinhas = await arquivosDoUsuario(id).catch(() => [] as string[]);
     for (const s of sessoes) {
         const inst = waManager.getInstance(s.sessionId);
         if (inst) {
@@ -50,6 +53,7 @@ export async function excluirUsuario(id: string): Promise<{ sessoesRemovidas: nu
         const r = await apagarMidiasDaSessao(s.sessionId).catch(() => ({ arquivos: 0, bytes: 0 }));
         arquivosRemovidos += r.arquivos;
     }
+    await apagarArquivosOrfaosDe(arquivosDeFigurinhas).catch(() => 0);
     await desconectarUsuario(id).catch(() => {});
     return { sessoesRemovidas: sessoes.length, arquivosRemovidos, email: alvo?.email ?? null, role: alvo?.role ?? null };
 }

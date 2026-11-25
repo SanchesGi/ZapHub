@@ -1,7 +1,9 @@
 "use client";
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RefreshCw } from "lucide-react";
+import { BellOff, RefreshCw } from "lucide-react";
+import { useEffect, useState } from "react";
+import { EVENTO_SESSOES_SILENCIADAS, carregarSessoesSilenciadas } from "@/lib/sessoes-silenciadas";
 import { Button } from "@/components/ui/button";
 import { useSession } from "./session-provider";
 import { useTranslations } from "next-intl";
@@ -10,6 +12,17 @@ export function SessionSelector() {
     const { sessions, sessionId, setSessionId, loading, refreshSessions } = useSession();
     const t = useTranslations("sessions.selector");
     const selectedSession = sessions.find(s => s.sessionId === sessionId);
+    // minha versao: sino cortado nas sessoes silenciadas (menu de alertas)
+    const [silenciadas, setSilenciadas] = useState<string[]>([]);
+    useEffect(() => {
+        carregarSessoesSilenciadas().then(setSilenciadas).catch(() => { /* fica sem o sino */ });
+        const h = (e: Event) => setSilenciadas((e as CustomEvent<string[]>).detail || []);
+        window.addEventListener(EVENTO_SESSOES_SILENCIADAS, h);
+        return () => window.removeEventListener(EVENTO_SESSOES_SILENCIADAS, h);
+    }, []);
+    const Mudo = ({ id }: { id: string }) => silenciadas.includes(id)
+        ? <BellOff className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-label="Sessão silenciada" />
+        : null;
 
     return (
         <div className="flex items-center gap-1 sm:gap-2">
@@ -27,6 +40,7 @@ export function SessionSelector() {
                                         <span className={`relative inline-flex rounded-full h-2 w-2 ${selectedSession.status === "CONNECTED" ? "bg-emerald-500" : "bg-destructive"}`}></span>
                                     </span>
                                     <span className="truncate font-medium text-xs sm:text-sm">{selectedSession.name}</span>
+                                    <Mudo id={selectedSession.sessionId} />
                                 </div>
                             ) : null}
                         </SelectValue>
@@ -42,7 +56,7 @@ export function SessionSelector() {
                                         <span className={`relative inline-flex rounded-full h-2 w-2 ${s.status === "CONNECTED" ? "bg-emerald-500" : "bg-destructive"}`}></span>
                                     </span>
                                     <div className="flex flex-col">
-                                        <span className="font-medium text-sm text-foreground">{s.name}</span>
+                                        <span className="flex items-center gap-1.5 font-medium text-sm text-foreground">{s.name}<Mudo id={s.sessionId} /></span>
                                         <span className="text-[10px] text-muted-foreground font-mono">{s.sessionId}</span>
                                     </div>
                                 </div>

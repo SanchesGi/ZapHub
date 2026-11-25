@@ -10,6 +10,82 @@ O número da versão segue o padrão `MAIOR.MENOR.CORREÇÃO`: a última parte s
 
 ---
 
+## 2.10.0 — 25/11/2026
+
+### Novidades
+- **Todos os emojis:** o painel de emojis passou a ter a lista completa do padrão Unicode, com todas as categorias (Carinhas e emoção, Pessoas e corpo, Animais e natureza, Comidas e bebidas, Viagens e lugares, Atividades, Objetos, Símbolos e Bandeiras), busca em português e recentes. A lista só é carregada quando o painel abre.
+- **Tom de pele por pessoa:** cada atendente escolhe o tom (amarelo ou um dos 5 tons) no painel de emojis. A escolha fica na conta, vale em qualquer computador e é usada também nas reações.
+- **Figurinhas direto da conversa:** a estrela "Adicionar às figurinhas" fica sempre visível na figurinha e também no menu da mensagem (botão direito), sem precisar baixar o arquivo. Se a figurinha ainda estiver baixando, o painel avisa.
+
+### Observações
+- No Windows, as bandeiras aparecem como letras (ex.: BR), porque o sistema não desenha emojis de bandeira; no celular e no Mac aparecem normalmente.
+
+### Para quem instala
+- A atualização adiciona um campo na tabela de usuários (aplicado automaticamente pelo `prisma db push` do `atualizar.sh`) e a dependência `emojibase-data` (só dados, licença MIT).
+
+## 2.9.0 — 25/11/2026
+
+### Novidades
+- **Emojis ao escrever:** botão de emoji ao lado do campo de mensagem, com categorias, busca em português e recentes. O emoji entra onde está o cursor, sem enviar.
+- **Figurinhas como no aplicativo:** na figurinha recebida, "Adicionar às figurinhas" guarda ela na sua coleção (cada atendente tem a sua). A aba "Figurinhas" do painel de emojis mostra as suas, das mais usadas para as menos, e um clique envia na hora. Dá para remover da coleção e criar uma figurinha nova a partir de uma imagem.
+
+### Manutenção
+- O servidor registra no log quando um status chega, é guardado ou é descartado (e o motivo), sem o número completo nem o conteúdo, para facilitar entender quando um status não aparece.
+
+### Para quem instala
+- A atualização cria a tabela de figurinhas (aplicado automaticamente pelo `prisma db push` do `atualizar.sh`, sem perda de dados). As figurinhas ficam na subpasta `figurinhas/` da pasta de mídia.
+- As figurinhas guardadas são da coleção de cada atendente (como no aplicativo): ficam fora do prazo de retenção de mídias e saem quando o atendente as remove ou quando a conta dele é excluída.
+
+## 2.8.0 — 25/11/2026
+
+### Novidades
+- **Auditoria mais fácil de entender:** cada registro virou uma frase ("Maria apagou para todos, pelo painel, às 14:32"), com a conversa, a sessão e a mensagem apagada, agrupados por dia. Filtros por período, sessão, quem apagou, tipo e busca, e uma explicação no topo de quem vê o quê (o Supervisor vê só as sessões dele; o Super Administrador, todas).
+- **Apagado só no celular agora fica registrado:** "apagar só para mim" e "apagar conversa" feitos no celular do número vão para a Auditoria e somem também do painel. A conversa apagada aparece num cartão só, com as mensagens para consultar.
+
+### Limites
+- "Limpar conversa" pelo celular não chega ao ZapHub (a biblioteca do WhatsApp usada não avisa esse caso); só "apagar" chega.
+
+## 2.7.0 — 25/11/2026
+
+### Novidades
+- **Status:** botão "Status" na lista de conversas, com os status de texto, foto e vídeo dos contatos (somem em 24 horas), visualizador com avançar e voltar, e resposta que chega ao autor citando o status. Os status não viram conversa nem notificam. O "visto" é de cada atendente e não é enviado ao WhatsApp, para o autor não ser avisado cada vez que alguém do painel abre.
+- **Publicar status** (para quem gerencia a sessão): texto com cor de fundo, foto ou vídeo com legenda. Vai para até 256 contatos que escreveram para a sessão nos últimos 30 dias, no máximo uma publicação por minuto, para proteger o número contra bloqueio.
+- **Enquete:** criar pelo menu do clipe (2 a 12 opções, resposta única ou várias) e ver o placar ao vivo na conversa, com quem votou em cada opção. Votar pelo painel ainda não é possível: a biblioteca do WhatsApp usada não envia votos com segurança.
+- **Info da mensagem:** enviada, entregue e lida, com horário. Em grupos, a lista de quem recebeu e quem leu (só aparece quem deixa a confirmação de leitura ligada).
+- **Administração de grupo** no painel de dados do grupo: adicionar membros por número (com o resultado de cada um), remover, promover e tirar admin, link de convite (mostrar, copiar e redefinir), nome, descrição, "só admins enviam", "só admins editam dados", mensagens temporárias e sair do grupo. Só aparece para quem gerencia a sessão e quando o número da sessão é admin do grupo.
+
+### Correções e segurança
+- O link de convite de um grupo só pode ser lido por quem gerencia a sessão (antes qualquer operador com acesso à sessão conseguia, e o link permite entrar no grupo).
+- A leitura automática não marca mais status como vistos (o autor era avisado) e a resposta automática não tenta mais responder a status.
+- Apagar os dados de um titular (LGPD) também apaga os arquivos dos status dele.
+- A rota de membros do grupo valida a ação e limita a 20 números por vez.
+
+### Para quem instala
+- A atualização cria a tabela de status vistos e campos novos na tabela de status (aplicado automaticamente pelo `prisma db push` do `atualizar.sh`, sem perda de dados).
+
+## 2.6.0 — 25/11/2026
+
+### Novidades
+- **Silenciar uma sessão inteira:** no menu de alertas (sino), cada pessoa escolhe as sessões que não devem tocar som, mostrar a ilha nem notificar. A escolha fica na conta de quem silenciou, vale em qualquer computador e não muda nada para os colegas. O seletor de sessões mostra um sino cortado nas sessões silenciadas.
+- **"Digitando…", "gravando áudio…", "online" e "visto por último"** no cabeçalho da conversa aberta. Nos grupos, aparece quem está digitando. "Online" e "visto por último" seguem a privacidade de cada contato no WhatsApp.
+- **Selecionar várias mensagens:** pelo menu da mensagem ("Selecionar"), marque até 100 mensagens e copie (com data e autor), encaminhe para várias conversas de uma vez ou apague. As suas são apagadas para todos; as de outras pessoas, só para você.
+
+### Para quem instala
+- A atualização adiciona um campo na tabela de usuários (aplicado automaticamente pelo `prisma db push` do `atualizar.sh`).
+
+## 2.5.2 — 25/11/2026
+
+### Segurança e manutenção
+- **Next.js 16.4.6:** corrige sete falhas de segurança de gravidade moderada da versão anterior (vazamento entre usuários no cache, injeção de resposta em instalações próprias, exposição de cookie e desvio no otimizador de imagens SVG). A partir desta versão, o próprio Next recusa gerar o sistema em versões com falha conhecida.
+- **React 19.3** e atualizações menores de bibliotecas (componentes da tela, gráficos, formulários, agendamento e registro de eventos), sem mudança de funcionamento.
+
+## 2.5.1 — 17/11/2026
+
+### Correções
+- **Mensagens de modelo (template, botões e listas):** alertas como os da Defesa Civil e mensagens de bots de empresas apareciam só como "[template]". Agora mostram o título, o texto, o rodapé e os botões, e a imagem, o vídeo ou o documento que vem no topo é baixado e exibido. O webhook também passa a repassar esse conteúdo. Mensagens antigas que já foram gravadas como "[template]" continuam assim.
+- **Imagens que ficavam carregando para sempre:** se o servidor reiniciava (por exemplo, numa atualização) enquanto uma mídia ainda estava baixando, ela ficava presa no carregamento. Agora o download é retomado quando a sessão conecta; se não der certo, aparece o botão "tentar de novo".
+- **Mídia nova mais rápida:** fotos e vídeos que chegam na hora passam na frente das mídias antigas do histórico que ainda estão baixando.
+
 ## 2.5.0 — 14/11/2026
 
 ### Novidades

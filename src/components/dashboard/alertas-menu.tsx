@@ -9,6 +9,9 @@ import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { EVENTO_ALERTAS, lerAlertas, salvarAlertas, tocarEnviada, tocarRecebida, type Alertas } from "@/lib/sons";
 import { EVENTO_ILHA_FLUTUANTE, EVENTO_TESTAR_ALERTA } from "./notificador";
+import { useSession as useWaSession } from "./session-provider";
+import { toast } from "sonner";
+import { EVENTO_SESSOES_SILENCIADAS, carregarSessoesSilenciadas, silenciarSessao as gravarSilencio } from "@/lib/sessoes-silenciadas";
 
 type Permissao = NotificationPermission | "indisponivel" | "inseguro";
 
@@ -31,6 +34,14 @@ export function AlertasMenu() {
     const [a, setA] = useState<Alertas | null>(null);
     const [perm, setPerm] = useState<Permissao>("default");
     const [temPip, setTemPip] = useState(false);
+    const { sessions } = useWaSession();
+    const [silenciadas, setSilenciadas] = useState<string[]>([]);
+    useEffect(() => {
+        carregarSessoesSilenciadas().then(setSilenciadas).catch(() => { /* fica a lista vazia */ });
+        const h = (e: Event) => setSilenciadas((e as CustomEvent<string[]>).detail || []);
+        window.addEventListener(EVENTO_SESSOES_SILENCIADAS, h);
+        return () => window.removeEventListener(EVENTO_SESSOES_SILENCIADAS, h);
+    }, []);
 
     useEffect(() => {
         setA(lerAlertas());
@@ -42,6 +53,12 @@ export function AlertasMenu() {
     }, []);
 
     const muda = (p: Partial<Alertas>) => setA(salvarAlertas(p));
+    // minha versao: silenciar uma sessao inteira (sem som, ilha nem notificacao); fica na conta do usuario
+    const silenciarSessao = (id: string, silenciar: boolean) => {
+        gravarSilencio(id, silenciar)
+            .then((ok) => { if (!ok) toast.error("Não foi possível salvar. Tente de novo."); })
+            .catch(() => toast.error("Não foi possível salvar. Tente de novo."));
+    };
     const tudoMudo = a ? !a.somRecebida && !a.popup && !a.notifSistema : false;
 
     const pedirPermissao = async () => {
@@ -104,6 +121,18 @@ export function AlertasMenu() {
                                     </div>
                                 )}
                             </div>
+                        )}
+                        {sessions.length > 0 && (
+                            <>
+                                <div className="my-1 border-t border-border/40" />
+                                <p className="px-2 pt-1 text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Silenciar sessão</p>
+                                <p className="px-2 pb-1 text-[11px] text-muted-foreground leading-snug">Sem som nem aviso das mensagens dessa sessão. Vale só para você, em qualquer computador.</p>
+                                {sessions.map((s) => (
+                                    <Linha key={s.sessionId} label={s.name || s.sessionId}
+                                        checked={silenciadas.includes(s.sessionId)}
+                                        onChange={(v) => silenciarSessao(s.sessionId, v)} />
+                                ))}
+                            </>
                         )}
                         <div className="my-1 border-t border-border/40" />
                         <Button variant="ghost" size="sm" className="justify-start gap-2 h-9 text-sm"

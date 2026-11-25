@@ -10,6 +10,7 @@
 import { BufferJSON, type WAMessage } from "@whiskeysockets/baileys";
 import { prisma } from "./prisma";
 import { logger } from "./logger";
+import { statusVigente } from "./status-puro";
 
 // ---- midia enviada pelo painel (keyId -> arquivo) ----
 type Enviada = { buffer: Buffer; mimetype?: string; expira: number };
@@ -46,8 +47,10 @@ export function descritorMidia(msg: WAMessage) {
  */
 export function extraParaTela(extra: any): any {
     if (!extra || typeof extra !== "object") return extra;
-    const { midiaOrigem, midiaPendente, ...resto } = extra;
-    void midiaOrigem;
+    // minha versao: tambem ficam so no servidor a chave da enquete (enqueteSegredo) e os recibos por participante
+    // (recibos: pesado em grupo grande; a tela pede pelo "Info da mensagem")
+    const { midiaOrigem, midiaPendente, enqueteSegredo, recibos, ...resto } = extra;
+    void midiaOrigem; void enqueteSegredo; void recibos;
     return midiaPendente ? { ...resto, midiaPendente: { falhou: !!midiaPendente.falhou } } : resto;
 }
 
@@ -61,22 +64,41 @@ export function mensagemDoDescritor(d: any): WAMessage | null {
 }
 
 // ---- fila ----
-type Tarefa = { sessionId: string; dbSessionId: string; msg: WAMessage; tentativa: number };
+// minha versao: prioridade = mensagem ao vivo passa na frente do historico (antes esperava centenas de midias antigas)
+// minha versao: alvo "story" = a midia e de um STATUS (tabela Story, nao Message); `aoTerminar` recebe o arquivo (ou null se desistiu)
+type Tarefa = {
+    sessionId: string; dbSessionId: string; msg: WAMessage; tentativa: number; prioridade?: boolean;
+    alvo?: "story"; aoTerminar?: (url: string | null) => void;
+};
 const ESPERAS_MS = [0, 30_000, 2 * 60_000, 10 * 60_000];
 const SIMULTANEOS = 3;
 const TEMPO_LIMITE_MS = 45_000;
+// minha versao: o historico de status pode trazer centenas de midias de uma vez; passando disso, o excedente nao entra na fila
+// (o status fica sem a imagem, marcado como "falhou") para a memoria e a rede nao dispararem
+const MAX_STATUS_NA_FILA = 150;
 
 const estado: { fila: Tarefa[]; rodando: number; naFila: Set<string> } =
     ((globalThis as any).__waMidiaFila ??= { fila: [], rodando: 0, naFila: new Set<string>() });
 
+function idDaTarefa(t: Pick<Tarefa, "sessionId" | "msg" | "alvo">): string {
+    return `${t.alvo === "story" ? "story:" : ""}${t.sessionId}:${t.msg.key.id}`;
+}
+
 export function agendarDownload(t: Omit<Tarefa, "tentativa"> & { tentativa?: number }) {
-    const id = `${t.sessionId}:${t.msg.key.id}`;
+    const id = idDaTarefa(t);
     const tentativa = t.tentativa ?? 0;
     if (tentativa === 0 && estado.naFila.has(id)) return; // ja esta na fila
+    if (t.alvo === "story" && tentativa === 0 && estado.fila.filter((x) => x.alvo === "story").length >= MAX_STATUS_NA_FILA) {
+        logger.warn("Media", `Fila de midia de status cheia (${MAX_STATUS_NA_FILA}); a midia de ${t.msg.key.id} nao sera baixada.`);
+        marcarStoryFalhou(t).catch((e) => logger.error("Media", "Erro ao marcar a midia do status como falha", e));
+        t.aoTerminar?.(null);
+        return;
+    }
     estado.naFila.add(id);
     const espera = ESPERAS_MS[Math.min(tentativa, ESPERAS_MS.length - 1)];
     setTimeout(() => {
-        estado.fila.push({ ...t, tentativa });
+        if (t.prioridade) estado.fila.unshift({ ...t, tentativa });
+        else estado.fila.push({ ...t, tentativa });
         rodar();
     }, espera);
 }
@@ -90,7 +112,8 @@ function rodar() {
 }
 
 async function processar(t: Tarefa) {
-    const id = `${t.sessionId}:${t.msg.key.id}`;
+    if (t.alvo === "story") return processarStory(t);
+    const id = idDaTarefa(t);
     const keyId = t.msg.key.id!;
     try {
         const { downloadAndSaveMedia } = await import("./webhook");
@@ -133,6 +156,51 @@ async function processar(t: Tarefa) {
     }
 }
 
+// minha versao: download da midia de um STATUS (mesma fila e mesmos limites das mensagens, prioridade baixa)
+async function processarStory(t: Tarefa) {
+    const id = idDaTarefa(t);
+    const keyId = t.msg.key.id!;
+    try {
+        const story = await prisma.story.findFirst({
+            where: { sessionId: t.dbSessionId, keyId },
+            select: { id: true, mediaUrl: true, expiraEm: true, timestamp: true, fromMe: true },
+        });
+        // apagado, vencido ou ja com arquivo: nada a baixar
+        if (!story || story.mediaUrl || !statusVigente({ criadoEm: story.timestamp, expiraEm: story.expiraEm })) {
+            estado.naFila.delete(id);
+            return;
+        }
+        const { downloadAndSaveMedia } = await import("./webhook");
+        const { waManager } = await import("@/modules/whatsapp/manager");
+        const sock = waManager.getInstance(t.sessionId)?.socket || undefined;
+        const url = await downloadAndSaveMedia(t.msg, t.sessionId, { sock, timeoutMs: TEMPO_LIMITE_MS });
+        if (!url) throw new Error("download sem resultado");
+
+        await prisma.story.update({ where: { id: story.id }, data: { mediaUrl: url, extra: { midiaOrigem: descritorMidia(t.msg) } as any } });
+        estado.naFila.delete(id);
+        (global as any).io?.to(t.sessionId).emit("status.update", { sessionKey: t.sessionId, acao: "midia", id: story.id, fromMe: story.fromMe, live: true });
+        t.aoTerminar?.(url);
+    } catch (e: any) {
+        const proxima = t.tentativa + 1;
+        if (proxima < ESPERAS_MS.length) {
+            logger.warn("Media", `Midia do status ${keyId} nao baixou (${e?.message || e}). Nova tentativa ${proxima + 1}/${ESPERAS_MS.length}.`);
+            agendarDownload({ ...t, tentativa: proxima });
+            return;
+        }
+        estado.naFila.delete(id);
+        logger.error("Media", `Midia do status ${keyId} nao baixou depois de ${ESPERAS_MS.length} tentativas.`);
+        await marcarStoryFalhou(t).catch(() => { /* status apagado no meio do caminho */ });
+        t.aoTerminar?.(null);
+    }
+}
+
+async function marcarStoryFalhou(t: Pick<Tarefa, "dbSessionId" | "msg">) {
+    const s = await prisma.story.findFirst({ where: { sessionId: t.dbSessionId, keyId: t.msg.key.id! }, select: { id: true, mediaUrl: true, extra: true } });
+    if (!s || s.mediaUrl) return;
+    const atual = (s.extra as any)?.midiaPendente || descritorMidia(t.msg as WAMessage);
+    await prisma.story.update({ where: { id: s.id }, data: { extra: { midiaPendente: { ...atual, falhou: true } } as any } });
+}
+
 function emitir(sessionId: string, m: any) {
     (global as any).io?.to(sessionId).emit("message.update", [{
         ...m,
@@ -167,4 +235,43 @@ export async function tentarMidiaDeNovo(sessionId: string, dbSessionId: string, 
     estado.naFila.delete(`${sessionId}:${keyId}`);
     agendarDownload({ sessionId, dbSessionId, msg });
     return true;
+}
+
+/**
+ * minha versao: a fila fica na memoria. Se o servidor reinicia (atualizacao, queda) com midias ainda baixando,
+ * elas ficavam marcadas como "baixando" para sempre (a imagem so rodava, sem o botao "tentar de novo").
+ * Ao conectar a sessao, devolve essas midias para a fila; a propria fila marca "falhou" se nao der.
+ */
+const RETOMAR_DIAS = 7;
+const RETOMAR_MAX = 500;
+const RETOMAR_VEZES = 3;
+
+export async function retomarMidiasPendentes(sessionId: string): Promise<number> {
+    const sessao = await prisma.session.findUnique({ where: { sessionId }, select: { id: true } });
+    if (!sessao) return 0;
+    const desde = new Date(Date.now() - RETOMAR_DIAS * 24 * 60 * 60 * 1000);
+    const candidatas = await prisma.message.findMany({
+        where: { sessionId: sessao.id, mediaUrl: null, type: { in: TIPOS_MIDIA as any }, timestamp: { gte: desde } },
+        select: { keyId: true, extra: true },
+        orderBy: { timestamp: "desc" },
+        take: RETOMAR_MAX,
+    });
+    let n = 0;
+    for (const c of candidatas) {
+        const pend = (c.extra as any)?.midiaPendente;
+        if (!pend || pend.falhou) continue;
+        // revisao de seguranca: conta as retomadas no banco; se uma midia derrubar o processo,
+        // ela nao volta para sempre a cada reinicio (desiste e fica o botao "tentar de novo")
+        const retomadas = (Number(pend.retomadas) || 0) + 1;
+        const desistir = retomadas > RETOMAR_VEZES;
+        const extra = { ...(c.extra as any), midiaPendente: { ...pend, retomadas, falhou: desistir } };
+        await prisma.message.update({ where: { sessionId_keyId: { sessionId: sessao.id, keyId: c.keyId } }, data: { extra } });
+        if (desistir) continue;
+        const msg = mensagemDoDescritor(pend);
+        if (!msg) continue;
+        agendarDownload({ sessionId, dbSessionId: sessao.id, msg });
+        n++;
+    }
+    if (n) logger.info("Media", `${n} midia(s) que estavam baixando antes de reiniciar voltaram para a fila.`);
+    return n;
 }

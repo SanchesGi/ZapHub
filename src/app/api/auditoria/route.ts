@@ -1,27 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthenticatedUser, isAdmin, podeGerenciarUsuarios, getAccessibleSessions, idsDaEquipe } from "@/lib/api-auth";
+import { idsDaEquipe } from "@/lib/api-auth";
+import { acessoDaAuditoria } from "@/lib/auditoria-acesso";
+import {
+    ACAO_CONVERSA, ACAO_MENSAGEM, chaveDoGrupo, condicaoDoTipo, ehPeriodo, ehTipoFiltro, inicioDoPeriodo,
+    mesclarPagina, type TipoFiltro,
+} from "@/lib/auditoria-tela";
 
-// minha versao: GET /api/auditoria?sessionId=&busca=&origem=&usuarioId=&pagina=&limite=
-// Registro de mensagens apagadas (quem apagou, o que era, de quem).
-// - Cada um ve so as sessoes a que tem acesso (getAccessibleSessions): o Super Administrador, todas menos as
-//   privadas de outros donos; o Supervisor, as dele e as compartilhadas com ele (nao as pessoais da equipe).
-// - Sessoes ja apagadas nao aparecem (nao ha mais a quem atribuir o acesso).
+// minha versao: GET /api/auditoria?sessionId=&busca=&tipo=&usuarioId=&periodo=&fuso=&pagina=&limite=
+// Registro de mensagens apagadas (quem apagou, o que era, de quem) e das conversas apagadas pelo celular.
+// - tipo: PAINEL | CELULAR | CONTATO | CONVERSA (CONVERSA = "Conversa apagada"); `origem` (PAINEL|CELULAR|CONTATO) segue valendo.
+// - periodo: hoje | 7d | 30d | tudo; fuso = Date.getTimezoneOffset() do navegador (para "hoje" comecar na meia-noite dele).
+// - As linhas de uma conversa apagada (uma por mensagem) voltam como UM item { tipoItem: "conversa", total }.
+// - Acesso: so quem acessoDaAuditoria deixa e so as sessoes a que a pessoa tem acesso. Sessoes ja apagadas nao aparecem.
+const PROFUNDIDADE_MAX = 5000; // mensagens mais novas que a paginacao alcanca (o resto se acha com os filtros)
+const GRUPOS_MAX = 2000;
+
+const invalido = (message: string) => NextResponse.json({ status: false, message }, { status: 400 });
+
 export async function GET(req: NextRequest) {
-    const user = await getAuthenticatedUser(req);
-    if (!user) return NextResponse.json({ status: false, message: "Unauthorized" }, { status: 401 });
-    if (!podeGerenciarUsuarios(user.role)) return NextResponse.json({ status: false, message: "Somente Supervisor ou Super Administrador" }, { status: 403 });
-    const admin = isAdmin(user.role);
+    const acesso = await acessoDaAuditoria(req);
+    if ("erro" in acesso) return acesso.erro;
+    const { user, admin, sessoesVisiveis } = acesso;
 
     const sp = new URL(req.url).searchParams;
-    const sessionId = sp.get("sessionId") || "";
-    const busca = (sp.get("busca") || "").trim();
-    const origem = sp.get("origem") || "";
-    const usuarioId = sp.get("usuarioId") || "";
-    const pagina = Math.max(1, parseInt(sp.get("pagina") || "1", 10) || 1);
+    const sessionId = (sp.get("sessionId") || "").slice(0, 120);
+    const busca = (sp.get("busca") || "").trim().slice(0, 200);
+    const usuarioId = (sp.get("usuarioId") || "").slice(0, 60);
     const limite = Math.min(100, Math.max(5, parseInt(sp.get("limite") || "25", 10) || 25));
+    const paginaMax = Math.max(1, Math.floor(PROFUNDIDADE_MAX / limite));
+    const pagina = Math.min(paginaMax, Math.max(1, parseInt(sp.get("pagina") || "1", 10) || 1));
 
-    const e: any[] = [{ acao: "MENSAGEM_APAGADA" }];
+    const periodo = sp.get("periodo") || "tudo";
+    if (!ehPeriodo(periodo)) return invalido("Período inválido (use hoje, 7d, 30d ou tudo)");
+    const tipoTexto = sp.get("tipo") || sp.get("origem") || "";
+    if (tipoTexto && !ehTipoFiltro(tipoTexto)) return invalido("Tipo inválido (use PAINEL, CELULAR, CONTATO ou CONVERSA)");
+    const tipo: TipoFiltro | null = tipoTexto ? (tipoTexto as TipoFiltro) : null;
+    const fuso = parseInt(sp.get("fuso") || "0", 10);
+    if (!Number.isFinite(fuso) || Math.abs(fuso) > 14 * 60) return invalido("Fuso inválido");
 
     // minha versao: so as sessoes a que a pessoa tem acesso. Antes o Supervisor via tambem as sessoes da equipe
     // (inclusive as pessoais, nao compartilhadas com ele) e o que a equipe apagou em qualquer sessao; o Super
@@ -31,16 +47,15 @@ export async function GET(req: NextRequest) {
         const ids = await idsDaEquipe(user.id);
         equipe = ids.length ? await prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, email: true } }) : [];
     }
-    const visiveis = await getAccessibleSessions(user.id, user.role);
-    const sessoesVisiveis = visiveis.map((s: any) => s.sessionId as string);
-    e.push({ sessionId: { in: sessoesVisiveis.length ? sessoesVisiveis : ["__nenhuma__"] } });
 
-    if (sessionId) e.push({ sessionId });
-    if (origem) e.push({ origem });
-    if (usuarioId) e.push({ usuarioId });
+    const comuns: any[] = [{ sessionId: { in: sessoesVisiveis.length ? sessoesVisiveis : ["__nenhuma__"] } }];
+    if (sessionId) comuns.push({ sessionId });
+    if (usuarioId) comuns.push({ usuarioId });
+    const inicio = inicioDoPeriodo(periodo, new Date(), fuso);
+    if (inicio) comuns.push({ criadoEm: { gte: inicio } });
     if (busca) {
         const dig = busca.replace(/\D/g, "");
-        e.push({ OR: [
+        comuns.push({ OR: [
             { conteudo: { contains: busca } },
             { chatNome: { contains: busca } },
             { autorNome: { contains: busca } },
@@ -48,24 +63,69 @@ export async function GET(req: NextRequest) {
             ...(dig.length >= 3 ? [{ chatJid: { contains: dig } }, { autorJid: { contains: dig } }] : []),
         ] });
     }
-    const where = { AND: e };
+    const onde = (acao: string) => ({ AND: [{ acao }, ...(tipo ? [condicaoDoTipo(tipo)] : []), ...comuns] });
+    // cada tipo pertence a UMA das duas listas: mensagens soltas ou conversas apagadas
+    const querSoltas = tipo !== "CONVERSA";
+    const querConversas = !tipo || tipo === "CONVERSA";
+    const ondeSoltas = onde(ACAO_MENSAGEM);
+    const ondeConversas = onde(ACAO_CONVERSA);
 
-    const [itens, total, sessoes] = await Promise.all([
-        prisma.auditoria.findMany({ where, orderBy: { criadoEm: "desc" }, skip: (pagina - 1) * limite, take: limite }),
-        prisma.auditoria.count({ where }),
-        prisma.session.findMany({ where: { sessionId: { in: sessoesVisiveis } }, select: { sessionId: true, name: true, user: { select: { name: true, email: true } } } }),
-    ]);
+    // conversas apagadas: uma linha por mensagem no banco; aqui viram um item por conversa (mesma sessao + conversa + instante)
+    const grupos = querConversas
+        ? (await prisma.auditoria.groupBy({
+            by: ["sessionId", "chatJid", "criadoEm"], where: ondeConversas, _count: { _all: true },
+            orderBy: { criadoEm: "desc" }, take: GRUPOS_MAX,
+        })).map((g) => ({ sessionId: g.sessionId, chatJid: g.chatJid, criadoEm: g.criadoEm, total: g._count._all }))
+        : [];
+
+    const totalSoltas = querSoltas ? await prisma.auditoria.count({ where: ondeSoltas }) : 0;
+    type Grupo = (typeof grupos)[number];
+    let pedaco: ({ tipo: "mensagem"; item: any } | { tipo: "conversa"; item: Grupo })[];
+    if (grupos.length === 0) {
+        const soltas = querSoltas ? await prisma.auditoria.findMany({ where: ondeSoltas, orderBy: { criadoEm: "desc" }, skip: (pagina - 1) * limite, take: limite }) : [];
+        pedaco = soltas.map((item) => ({ tipo: "mensagem" as const, item }));
+    } else {
+        const soltas = querSoltas ? await prisma.auditoria.findMany({ where: ondeSoltas, orderBy: { criadoEm: "desc" }, take: pagina * limite }) : [];
+        pedaco = mesclarPagina(soltas, grupos, pagina, limite);
+    }
+
+    // uma linha de amostra de cada conversa apagada desta pagina (nome da conversa, quem apagou)
+    const gruposDaPagina = pedaco.flatMap((p) => (p.tipo === "conversa" ? [p.item] : []));
+    const amostras = gruposDaPagina.length
+        ? await prisma.auditoria.findMany({
+            where: { acao: ACAO_CONVERSA, OR: gruposDaPagina.map((g) => ({ sessionId: g.sessionId, chatJid: g.chatJid, criadoEm: g.criadoEm })) },
+            distinct: ["sessionId", "chatJid", "criadoEm"],
+            orderBy: { enviadaEm: "asc" },
+        })
+        : [];
+    const amostraDe = new Map(amostras.map((a) => [chaveDoGrupo(a), a]));
+
+    const sessoes = await prisma.session.findMany({ where: { sessionId: { in: sessoesVisiveis } }, select: { sessionId: true, name: true, user: { select: { name: true, email: true } } } });
     // nome da sessao (e de quem e, para as pessoais da equipe)
     const nomeSessao = new Map(sessoes.map((s) => [s.sessionId, s.name]));
     const donoSessao = new Map(sessoes.map((s) => [s.sessionId, s.user?.name || s.user?.email || null]));
+    const dadosDaSessao = (id: string) => ({ sessaoNome: nomeSessao.get(id) || id, sessaoDono: donoSessao.get(id) || null });
 
+    const data = pedaco.flatMap((p) => {
+        if (p.tipo === "mensagem") return [{ ...p.item, tipoItem: "mensagem" as const, ...dadosDaSessao(p.item.sessionId) }];
+        const a = amostraDe.get(chaveDoGrupo(p.item));
+        if (!a) return [];
+        // o conteudo das mensagens so vem no "ver mensagens" (/api/auditoria/conversa), nao nesta lista
+        return [{
+            ...a, id: chaveDoGrupo(p.item), tipoItem: "conversa" as const, total: p.item.total,
+            keyId: null, conteudo: null, mediaUrl: null, tipo: null, autorJid: null, autorNome: null, fromMe: false, enviadaEm: null,
+            ...dadosDaSessao(a.sessionId),
+        }];
+    });
+
+    const total = totalSoltas + grupos.length;
     return NextResponse.json({
         status: true,
-        data: itens.map((i) => ({ ...i, sessaoNome: nomeSessao.get(i.sessionId) || i.sessionId, sessaoDono: donoSessao.get(i.sessionId) || null })),
+        data,
         // pessoas para o filtro "Quem apagou" (Supervisor: a equipe dele; admin: todos)
         pessoas: admin
             ? (await prisma.user.findMany({ select: { id: true, name: true, email: true }, orderBy: { name: "asc" } }))
             : [{ id: user.id, name: (user as any).name || null, email: (user as any).email }, ...equipe],
-        meta: { total, pagina, limite, paginas: Math.max(1, Math.ceil(total / limite)) },
+        meta: { total, pagina, limite, paginas: Math.min(paginaMax, Math.max(1, Math.ceil(total / limite))), truncado: total > paginaMax * limite },
     });
 }

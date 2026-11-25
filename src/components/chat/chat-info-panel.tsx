@@ -2,19 +2,23 @@
 
 // minha versao: painel lateral de informações — contato (foto, telefone, recado, perfil comercial,
 // salvar nome, bloquear) e grupo (descrição, criador, regras e TODOS os membros com nome resolvido).
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { X, Copy, Search, Ban, CheckCircle2, Save, MessageCircle, Calendar, Users, Building2, Globe, Mail, Shield, Crown, Loader2 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+// minha versao: administracao do grupo (membros, convite, nome, regras, sair) e a regra de quem ve os botoes
+import { AcoesDoMembroLinha, AdicionarMembros, AvisoLeitura, ConviteGrupo, EditarGrupo, RegrasDoGrupo, SairDoGrupo, useConvite, type ContextoGrupo } from "./grupo-admin";
+import { acoesDoMembro, permissoesDoGrupo, rotuloTemporarias, type PapelNoGrupo } from "@/lib/grupo-admin";
 
 export interface Participante {
     id: string;
     admin: string | null;
     name: string | null;
     phone: string | null;
+    souEu?: boolean; // minha versao: e a conta desta sessao
 }
 
 // "5546999998888" -> "+55 (46) 99999-8888"
@@ -61,7 +65,7 @@ function MemberRow({ sessionId, p, onClick }: { sessionId: string; p: Participan
     const titulo = p.name || tel || "Membro (número oculto)";
     return (
         <button ref={ref} type="button" onClick={onClick}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted/60 transition-colors text-left cursor-pointer">
+            className="flex-1 min-w-0 flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted/60 transition-colors text-left cursor-pointer">
             <Avatar className="h-9 w-9 shrink-0">
                 {foto && <AvatarImage src={foto} alt={titulo} />}
                 <AvatarFallback className="text-[10px] font-semibold bg-primary/15 text-foreground">{iniciais(p.name || p.phone)}</AvatarFallback>
@@ -189,10 +193,20 @@ function ContatoInfo({ sessionId, jid, onOpenChat }: { sessionId: string; jid: s
 }
 
 // ─── GRUPO ─────────────────────────
-function GrupoInfo({ sessionId, jid, onOpenChat }: { sessionId: string; jid: string; onOpenChat?: (jid: string, name?: string) => void }) {
+function GrupoInfo({ sessionId, jid, onOpenChat, onClose }: { sessionId: string; jid: string; onOpenChat?: (jid: string, name?: string) => void; onClose: () => void }) {
     const [g, setG] = useState<any>(null);
     const [erro, setErro] = useState<string | null>(null);
     const [busca, setBusca] = useState("");
+
+    // minha versao: recarrega os dados do grupo sem piscar a tela (usado depois de cada acao de administracao)
+    const recarregar = useCallback(async () => {
+        try {
+            const r = await fetch(`/api/groups/${sessionId}/${encodeURIComponent(jid)}`);
+            const j = await r.json();
+            if (j?.status === false) toast.error(j.message || "Não consegui atualizar os dados do grupo");
+            else setG(j);
+        } catch { toast.error("Não consegui atualizar os dados do grupo"); }
+    }, [sessionId, jid]);
 
     useEffect(() => {
         let active = true;
@@ -203,6 +217,10 @@ function GrupoInfo({ sessionId, jid, onOpenChat }: { sessionId: string; jid: str
             .catch(() => active && setErro("Falha ao carregar o grupo"));
         return () => { active = false; };
     }, [sessionId, jid]);
+
+    const ctx: ContextoGrupo = useMemo(() => ({ sessionId, jid, recarregar }), [sessionId, jid, recarregar]);
+    const convite = useConvite(ctx);
+    const permissoes = permissoesDoGrupo(!!g?.podeGerenciar, (g?.meuPapel || "desconhecido") as PapelNoGrupo);
 
     const membros: Participante[] = useMemo(() => {
         const lista: Participante[] = Array.isArray(g?.participantsInfo) ? g.participantsInfo : [];
@@ -236,20 +254,31 @@ function GrupoInfo({ sessionId, jid, onOpenChat }: { sessionId: string; jid: str
                 <p className="text-sm text-muted-foreground">Grupo · {total} membro(s) · {admins} admin(s)</p>
             </div>
 
-            {g.desc && <Linha icon={MessageCircle} rotulo="Descrição"><span className="whitespace-pre-wrap">{g.desc}</span></Linha>}
+            {!permissoes.podeAgir && permissoes.motivoLeitura && <AvisoLeitura motivo={permissoes.motivoLeitura} />}
+            {permissoes.podeAgir && <EditarGrupo ctx={ctx} subject={g.subject || ""} desc={g.desc || ""} />}
+
+            {!permissoes.podeAgir && g.desc && <Linha icon={MessageCircle} rotulo="Descrição"><span className="whitespace-pre-wrap">{g.desc}</span></Linha>}
             {(g.creation || donoNome) && (
                 <Linha icon={Calendar} rotulo="Criado">
                     {g.creation ? new Date(g.creation * 1000).toLocaleDateString("pt-BR") : "—"}
                     {donoNome && <span className="text-muted-foreground"> por {donoNome}</span>}
                 </Linha>
             )}
-            <Linha icon={Shield} rotulo="Regras">
-                <span className="flex flex-wrap gap-1.5 mt-0.5">
-                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-muted">{g.announce ? "Só admins enviam mensagens" : "Todos podem enviar"}</span>
-                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-muted">{g.restrict ? "Só admins editam os dados" : "Todos editam os dados"}</span>
-                    {g.ephemeralDuration ? <span className="text-[11px] px-2 py-0.5 rounded-full bg-muted">Mensagens temporárias</span> : null}
-                </span>
-            </Linha>
+            {permissoes.podeAgir ? (
+                <>
+                    <RegrasDoGrupo ctx={ctx} announce={!!g.announce} restrict={!!g.restrict} ephemeral={Number(g.ephemeralDuration) || 0} />
+                    <ConviteGrupo convite={convite} />
+                    <AdicionarMembros ctx={ctx} convite={convite} />
+                </>
+            ) : (
+                <Linha icon={Shield} rotulo="Regras">
+                    <span className="flex flex-wrap gap-1.5 mt-0.5">
+                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-muted">{g.announce ? "Só admins enviam mensagens" : "Todos podem enviar"}</span>
+                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-muted">{g.restrict ? "Só admins editam os dados" : "Todos editam os dados"}</span>
+                        {g.ephemeralDuration ? <span className="text-[11px] px-2 py-0.5 rounded-full bg-muted">Mensagens temporárias: {rotuloTemporarias(g.ephemeralDuration)}</span> : null}
+                    </span>
+                </Linha>
+            )}
 
             <div className="px-4 pt-3 pb-2 flex items-center justify-between">
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Membros ({membros.length})</p>
@@ -261,13 +290,20 @@ function GrupoInfo({ sessionId, jid, onOpenChat }: { sessionId: string; jid: str
                 </div>
             </div>
             <div className="px-1">
-                {filtrados.map((p) => (
-                    <MemberRow key={p.id} sessionId={sessionId} p={p}
-                        onClick={() => onOpenChat?.(p.phone ? `${p.phone}@s.whatsapp.net` : p.id, p.name || formatarTelefone(p.phone) || undefined)} />
-                ))}
+                {filtrados.map((p) => {
+                    const nomeMembro = p.name || formatarTelefone(p.phone) || "membro";
+                    return (
+                        <div key={p.id} className="flex items-center">
+                            <MemberRow sessionId={sessionId} p={p}
+                                onClick={() => onOpenChat?.(p.phone ? `${p.phone}@s.whatsapp.net` : p.id, p.name || formatarTelefone(p.phone) || undefined)} />
+                            <AcoesDoMembroLinha ctx={ctx} membroId={p.id} nome={nomeMembro} acoes={acoesDoMembro(permissoes.podeAgir, p)} />
+                        </div>
+                    );
+                })}
                 {filtrados.length === 0 && <p className="px-4 py-6 text-sm text-muted-foreground text-center">Nenhum membro encontrado</p>}
             </div>
             <p className="px-4 pt-3 text-[11px] text-muted-foreground">Clique num membro para abrir uma conversa privada com ele.</p>
+            {permissoes.podeAgir && <SairDoGrupo ctx={ctx} nome={g.subject || "Grupo"} onSaiu={onClose} />}
         </div>
     );
 }
@@ -277,7 +313,8 @@ export function ChatInfoPanel({ sessionId, jid, onClose, onOpenChat }: {
 }) {
     const isGroup = jid.endsWith("@g.us");
     useEffect(() => {
-        const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+        // minha versao: Esc fecha so o dialogo ou a lista aberta (confirmacoes de administracao), nao o painel junto
+        const h = (e: KeyboardEvent) => { if (e.key === "Escape" && !document.querySelector('[role="alertdialog"], [role="listbox"]')) onClose(); };
         window.addEventListener("keydown", h);
         return () => window.removeEventListener("keydown", h);
     }, [onClose]);
@@ -290,7 +327,7 @@ export function ChatInfoPanel({ sessionId, jid, onClose, onOpenChat }: {
             </div>
             <div className={cn("flex-1 overflow-y-auto styled-scrollbar")}>
                 {isGroup
-                    ? <GrupoInfo sessionId={sessionId} jid={jid} onOpenChat={onOpenChat} />
+                    ? <GrupoInfo sessionId={sessionId} jid={jid} onOpenChat={onOpenChat} onClose={onClose} />
                     : <ContatoInfo sessionId={sessionId} jid={jid} onOpenChat={onOpenChat} />}
             </div>
         </aside>

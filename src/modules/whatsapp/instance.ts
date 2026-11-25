@@ -1,3 +1,4 @@
+import { bindPresenca } from "./store/presenca";
 import makeWASocket, {
     DisconnectReason,
     generateMessageIDV2,
@@ -16,6 +17,7 @@ import { bindContactSync } from "./store/contacts";
 import { bindAutoReply } from "./store/autoreply";
 import { bindPpGuard } from "./store/ppguard";
 import { bindEstadoChat } from "./store/estado-chat";
+import { bindApagadasCelular } from "./store/apagadas-celular";
 import { antispam } from "./antispam";
 import { logger } from "@/lib/logger";
 import { prepararMidiaSegura } from "@/lib/midia-segura";
@@ -167,6 +169,12 @@ export class WhatsAppInstance {
 
             // minha versao: arquivada / silenciada / fixada espelhadas do WhatsApp
             bindEstadoChat(sock, this.sessionId, this.io);
+
+            // minha versao: o que o dono apaga so no celular ("apagar so para mim" / "apagar conversa") vai para a Auditoria
+            bindApagadasCelular(sock, this.sessionId, this.io);
+
+            // minha versao: "digitando/online" das conversas abertas no painel
+            bindPresenca(sock, this.sessionId, this.io);
 
             sock.ev.on("creds.update", async (...a: any[]) => {
                 try { await (saveCreds as any)(...a); } catch (e) { logger.error("Instance", "Falha ao salvar credenciais", e); }
@@ -371,6 +379,11 @@ export class WhatsAppInstance {
                     where: { sessionId: this.sessionId },
                     data: { status: "CONNECTED", qr: null }
                 });
+
+                // minha versao: midias que ficaram "baixando" quando o servidor reiniciou voltam para a fila
+                import("@/lib/midia-fila")
+                    .then(({ retomarMidiasPendentes }) => retomarMidiasPendentes(this.sessionId))
+                    .catch((e) => logger.error("Media", "Falha ao retomar midias pendentes", e));
 
                 const sock = this.socket as WASocket;
                 bindAutoReply(sock, this.sessionId);

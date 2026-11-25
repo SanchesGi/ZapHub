@@ -18,11 +18,12 @@ type Conversa = { jid: string; name?: string | null; notify?: string | null };
 
 export function EncaminharDialog({ sessionId, keyId, resumo, onFechar }: Readonly<{
     sessionId: string;
-    keyId: string | null;
+    keyId: string | string[] | null; // minha versao: varias mensagens (selecao multipla)
     resumo: string;
     onFechar: () => void;
 }>) {
-    const aberto = !!keyId;
+    const ids = keyId == null ? [] : Array.isArray(keyId) ? keyId : [keyId];
+    const aberto = ids.length > 0;
     const [busca, setBusca] = useState("");
     const [lista, setLista] = useState<Conversa[]>([]);
     const [carregando, setCarregando] = useState(false);
@@ -57,16 +58,25 @@ export function EncaminharDialog({ sessionId, keyId, resumo, onFechar }: Readonl
     };
 
     const enviar = async () => {
-        if (!keyId || !escolhidas.size) return;
+        if (!ids.length || !escolhidas.size) return;
         setEnviando(true);
         try {
-            const r: any = await encaminharMensagem(sessionId, keyId, [...escolhidas.keys()]);
-            if (!r?.success) throw new Error(r?.error || "Falha ao encaminhar");
-            if (r.falhas?.length) {
-                const nomes = r.falhas.map((f: any) => escolhidas.get(f.jid) || f.jid).join(", ");
-                toast.warning(`Encaminhada para ${r.enviados}; falhou para ${nomes}: ${r.falhas[0]?.erro || ""}`);
+            // uma mensagem por vez, na ordem da conversa (o WhatsApp entrega na ordem em que recebe)
+            const falhas: any[] = [];
+            let enviados = 0;
+            for (const id of ids) {
+                const r: any = await encaminharMensagem(sessionId, id, [...escolhidas.keys()]);
+                if (!r?.success) throw new Error(r?.error || "Falha ao encaminhar");
+                enviados += r.enviados || 0;
+                falhas.push(...(r.falhas || []));
+            }
+            if (falhas.length) {
+                const nomes = [...new Set(falhas.map((f: any) => escolhidas.get(f.jid) || f.jid))].join(", ");
+                toast.warning(`Encaminhado em parte; falhou para ${nomes}: ${falhas[0]?.erro || ""}`);
+            } else if (ids.length > 1) {
+                toast.success(`${ids.length} mensagens encaminhadas para ${escolhidas.size} conversa${escolhidas.size > 1 ? "s" : ""}`);
             } else {
-                toast.success(r.enviados === 1 ? "Mensagem encaminhada" : `Mensagem encaminhada para ${r.enviados} conversas`);
+                toast.success(enviados === 1 ? "Mensagem encaminhada" : `Mensagem encaminhada para ${enviados} conversas`);
             }
             onFechar();
         } catch (e: any) {

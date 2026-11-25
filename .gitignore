@@ -77,3 +77,4 @@ logs-servico.txt
 
 # Quadro de coordenacao dos agentes (estado de trabalho, nao vai para o git)
 .claude/quadro/
+npm-audit.json

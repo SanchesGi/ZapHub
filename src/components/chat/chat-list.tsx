@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { MessageSquarePlus, Search, MessageCircle, X, Tag, MoreHorizontal, CornerUpLeft, Trash2, Info, Check, BookUser, CheckCheck, Clock3, AlertCircle, Mail, MailOpen, Pin, PinOff, BellOff, Bell, Archive, ArchiveRestore, ChevronLeft } from "lucide-react";
 import { NovaConversaDialog, normalizarNumero } from "./nova-conversa";
+import { StatusBotao } from "./status-botao";
 import { formatarTelefone } from "./chat-info-panel";
 import { deixarArquivos, temArquivos } from "@/lib/arquivos-pendentes";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -610,6 +611,12 @@ export function ChatList({ sessionId, onSelectChat, selectedJid }: ChatListProps
             if (d?.sessionKey !== sessionId) return;
             setChats(prev => prev.map(c => c.jid === d.jid && !c.naoLida ? { ...c, naoLida: true } : c));
         };
+        // minha versao: conversa apagada no celular -> some da lista (o registro fica na Auditoria)
+        const onRemovida = (d: any) => {
+            if (d?.sessionKey !== sessionId || !d.jid) return;
+            setChats(prev => prev.some(c => c.jid === d.jid) ? prev.filter(c => c.jid !== d.jid) : prev);
+        };
+        socket.on("chat.removed", onRemovida);
         socket.on("chat.naoLida", onNaoLida);
         socket.on("message.update", handler);
         socket.on("message.status", onStatus);
@@ -617,7 +624,7 @@ export function ChatList({ sessionId, onSelectChat, selectedJid }: ChatListProps
         return () => {
             socket.off("connect", onConnect); socket.off("message.update", handler);
             socket.off("message.status", onStatus); socket.off("chat.lida", onLida); socket.off("chat.naoLida", onNaoLida);
-            socket.off("chat.estado", onEstado);
+            socket.off("chat.estado", onEstado); socket.off("chat.removed", onRemovida);
         };
     }, [sessionId, getSocket, joinSession, fetchChats, filter]);
 
@@ -724,6 +731,8 @@ export function ChatList({ sessionId, onSelectChat, selectedJid }: ChatListProps
                             className="h-8 pl-8 text-sm bg-muted/50 border-0 rounded-lg focus-visible:ring-1" />
                     </div>
                     <div className="flex items-center gap-0.5 shrink-0">
+                        {/* minha versao: status (stories) da sessao */}
+                        <StatusBotao sessionId={sessionId} />
                         <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" title="Agenda de contatos"
                             onClick={() => { setNovaModo("agenda"); setIsNewChatOpen(true); }}>
                             <BookUser className="h-4 w-4" />

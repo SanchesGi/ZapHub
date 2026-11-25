@@ -12,6 +12,7 @@ import path from "node:path";
 import os from "node:os";
 import { promises as fs } from "node:fs";
 import { prisma } from "./prisma";
+import { hashValido } from "./figurinha-puro";
 
 export const PASTA_PADRAO = path.join(process.cwd(), "data", "media");
 export const PASTA_SUGERIDA = "/var/lib/zaphub/midia";
@@ -265,10 +266,47 @@ export async function iniciarMudanca(origem: string): Promise<Mudanca> {
                 if (e?.code === "ENOSPC") break; // disco de destino cheio: para e avisa
             }
         }
+        // minha versao: as figurinhas guardadas pelos atendentes (subpasta figurinhas/) acompanham a mudanca de pasta
+        await moverFigurinhas(origem, destino, m);
         m.rodando = false;
         m.fim = new Date().toISOString();
     })();
     return m;
+}
+
+/** copia (conferindo o tamanho) um arquivo para a pasta nova e apaga o original; devolve os bytes */
+async function copiarEApagar(de: string, para: string): Promise<number> {
+    const s = await fs.stat(de);
+    let jaExiste = false;
+    try { jaExiste = (await fs.stat(para)).size === s.size; } catch { /* nao existe */ }
+    if (!jaExiste) {
+        const tmp = `${para}.parcial`;
+        await fs.copyFile(de, tmp);
+        if ((await fs.stat(tmp)).size !== s.size) { await fs.unlink(tmp).catch(() => {}); throw new Error("cópia incompleta"); }
+        await fs.rename(tmp, para);
+    }
+    await fs.unlink(de);
+    return s.size;
+}
+
+/** leva os webp de origem/figurinhas para destino/figurinhas; so nomes "<sha256>.webp" */
+async function moverFigurinhas(origem: string, destino: string, m: Mudanca): Promise<void> {
+    const de = path.join(origem, "figurinhas");
+    const para = path.join(destino, "figurinhas");
+    let nomes: string[] = [];
+    try { nomes = (await fs.readdir(de)).filter((n) => n.endsWith(".webp") && hashValido(n.slice(0, -5))); } catch { return; }
+    if (!nomes.length) return;
+    try { await fs.mkdir(para, { recursive: true }); } catch (e: any) { m.erros++; m.ultimoErro = `figurinhas: ${e?.code || e?.message || e}`; return; }
+    for (const nome of nomes) {
+        try {
+            m.bytes += await copiarEApagar(path.join(de, nome), path.join(para, nome));
+            m.movidos++;
+        } catch (e: any) {
+            m.erros++;
+            m.ultimoErro = `figurinhas/${nome}: ${e?.code || e?.message || e}`;
+            if (e?.code === "ENOSPC") break;
+        }
+    }
 }
 
 /** apaga midias com mais de `dias` dias (todas as pastas lidas). Devolve quantas e quantos bytes. */

@@ -10,7 +10,7 @@ const erroSemConexao = () => new Error(MODO_DEMO ? MENSAGEM_DEMO : "WhatsApp ses
 import Sticker from "wa-sticker-formatter";
 import type { InteractiveMessagePayload, AlbumItem } from "./interactive";
 import { generateMessageIDV2 } from "@whiskeysockets/baileys";
-import { guardarMidiaEnviada } from "@/lib/midia-fila";
+import { extraParaTela, guardarMidiaEnviada } from "@/lib/midia-fila";
 import { estadosDe } from "./store/estado-chat";
 
 /**
@@ -576,6 +576,7 @@ export class ChatService {
         const atualizada = await prisma.message.update({ where: { id: alvo.id }, data: { content: texto, extra: extra as any } });
         (global as any).io?.to(sessionId).emit("message.update", [{
             ...atualizada,
+            extra: extraParaTela(atualizada.extra), // minha versao: dados de download e recibos ficam so no servidor
             sessionKey: sessionId,
             live: false,
             timestamp: atualizada.timestamp instanceof Date ? atualizada.timestamp.toISOString() : atualizada.timestamp,
@@ -683,15 +684,16 @@ export class ChatService {
         return msgPayload;
     }
 
-    static async sendTextMessage(sessionId: string, jid: string, messagePayload: any, mentions?: string[], quotedMessageId?: string) {
+    // minha versao: `citacaoPronta` = mensagem citada ja montada (ex.: um status, que nao esta na tabela de mensagens)
+    static async sendTextMessage(sessionId: string, jid: string, messagePayload: any, mentions?: string[], quotedMessageId?: string, citacaoPronta?: any) {
         const instance = waManager.getInstance(sessionId);
         if (!instance || !instance.socket) {
             throw erroSemConexao();
         }
 
         // Handle quoted/reply message
-        let quotedOption: any = undefined;
-        if (quotedMessageId) {
+        let quotedOption: any = citacaoPronta;
+        if (quotedMessageId && !citacaoPronta) {
             try {
                 const dbSession = await prisma.session.findUnique({ where: { sessionId }, select: { id: true } });
                 if (dbSession) {
@@ -790,7 +792,7 @@ export class ChatService {
         mimetype: string,
         fileName: string,
         caption: string,
-        opts: { seconds?: number; encaminhada?: number } = {} // minha versao: duracao da voz; encaminhada = quantas vezes
+        opts: { seconds?: number; encaminhada?: number; animada?: boolean } = {} // minha versao: duracao da voz; encaminhada = quantas vezes; animada = figurinha animada
     ) {
         const instance = waManager.getInstance(sessionId);
         if (!instance || !instance.socket) {
@@ -829,6 +831,10 @@ export class ChatService {
                 quality: 50
             });
             content = { sticker: await sticker.toBuffer() };
+        } else if (type === 'sticker-pronto') {
+            // minha versao: figurinha que ja e um webp (da colecao do atendente): vai como esta, sem recodificar
+            // (recodificar estragaria a animacao). O Buffer passa pelo filtro de midia do sock.sendMessage como qualquer envio.
+            content = { sticker: buffer, ...(opts.animada ? { isAnimated: true } : {}) };
         } else {
             content = { document: buffer, mimetype, fileName, ...messageOptions };
         }
@@ -861,7 +867,7 @@ export class ChatService {
                 webhookMsg.message = { audioMessage: { mimetype: type === 'voice' ? 'audio/ogg; codecs=opus' : 'audio/mp4', ptt: type === 'voice' } };
             } else if (type === 'document') {
                 webhookMsg.message = { documentMessage: { caption: caption || "", fileName, mimetype } };
-            } else if (type === 'sticker') {
+            } else if (type === 'sticker' || type === 'sticker-pronto') {
                 webhookMsg.message = { stickerMessage: {} };
             }
 
